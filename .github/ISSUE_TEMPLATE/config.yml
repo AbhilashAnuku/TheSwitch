@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Sibling library — Mr.Latin (translation)
+    url: https://github.com/AbhilashAnuku/mr.latin
+    about: Drop-in page translation. Translation-related issues belong there — TheSwitch is theming only.

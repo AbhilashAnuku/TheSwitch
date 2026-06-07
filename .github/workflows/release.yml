@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the GitHub release
+  id-token: write # npm provenance (OIDC)
+
+jobs:
+  publish:
+    name: publish to npm (+ CDN via jsDelivr/unpkg)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      - name: Gate on a green build
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Publish (public, with provenance)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # jsDelivr and unpkg serve the published package automatically — no step needed:
+      #   https://cdn.jsdelivr.net/npm/theswitch/dist/the-switch.global.js
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

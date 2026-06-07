@@ -1,0 +1,36 @@
+# TheSwitch
+
+> Zero-config, zero-dependency, privacy-first adaptive theming. Include it and a
+> site's theme reacts to time, season, sky, weather and (opt-in) location:
+> light, dark, sunny, snow, windy, watery, foggy, stormy, night. Theming only —
+> translation is the sibling library, Mr.Latin.
+
+## What it does
+Detects the visitor's "atmosphere" and applies a coherent set of CSS custom
+properties (`--ts-*`) plus a `data-atmos-skin` attribute, so the page restyles
+itself. With no opt-in it uses only the local clock + hemisphere (no network).
+
+## Install / use
+- npm: `npm install theswitch` then `import { TheSwitch } from "theswitch"; new TheSwitch().start();`
+- CDN (no build): `<script src="https://cdn.jsdelivr.net/npm/theswitch/dist/the-switch.global.js" data-the-switch></script>`
+
+## Privacy tiers
+- Default: time + season only — fully offline, zero network calls.
+- Opt-in: `data-use-geolocation` (or `setLiveWeather(true)`) enables live weather via Open-Meteo (free, no key), coarse coordinates only.
+
+## Core API
+- `new TheSwitch(options).start(): Promise<TheSwitch>`
+- methods: `setMode("auto"|"light"|"dark")`, `setLiveWeather(on)`, `subscribe(fn) => unsubscribe`, `getState()`, `destroy()`
+- options: `mode`, `latitude`, `longitude`, `useGeolocation`, `refreshMinutes`, `widget`, `presets`, `transition`
+- exports: `detectAtmosphere`, `deriveSkin`, `applyTheme`, `clearTheme`, `SKIN_PRESETS`, `fetchWeather`
+- skins: light, dark, sunny, snow, windy, watery, foggy, stormy, night
+
+## Styling for AI agents / consumers
+- Style the page with the `--ts-*` custom properties and/or `[data-atmos-skin="snow"]`-style selectors. Built-in presets exist for every skin; override per-skin via `applyTheme(skin, el, { presets })` or the `presets` option.
+- `data-atmos-*` attributes (skin / theme / daypart / season / weather) are set on the root for CSS targeting.
+
+## Links
+- README.md — full documentation and examples
+- CONTRIBUTING.md — zero-dependency, theming-only, privacy-first rules
+- SECURITY.md — privacy and network policy
+- Sibling: Mr.Latin — drop-in page translation

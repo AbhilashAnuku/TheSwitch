@@ -1,0 +1,36 @@
+/**
+ * TheSwitch — public package entry.
+ *
+ * Re-exports the headless engine, its types, and the framework-agnostic
+ * helpers from core/providers. Framework adapters live in their own
+ * subpath entries (`theswitch/react`, `/vue`, `/svelte`) and are not
+ * pulled in here so the main bundle stays free of peer deps.
+ */
+import { TheSwitch } from "./core/the-switch";
+
+export { TheSwitch };
+export default TheSwitch;
+
+export type {
+  TheSwitchOptions,
+  Mode,
+  Position,
+  TheSwitchState,
+  Unsubscribe,
+} from "./core/the-switch";
+
+export type {
+  Atmosphere,
+  AtmosphereOptions,
+  Daypart,
+  Season,
+  Weather,
+  Skin,
+  SkinName,
+} from "./core/atmosphere";
+
+export { detectAtmosphere, applyAtmosphere, deriveSkin } from "./core/atmosphere";
+
+export { applyTheme, clearTheme, SKIN_PRESETS } from "./core/theme";
+
+export { fetchWeather } from "./providers/weather";

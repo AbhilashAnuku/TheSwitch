@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in TheSwitch isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for filing a bug! Please fill in what you can — a minimal repro helps most.
+  - type: input
+    id: version
+    attributes:
+      label: TheSwitch version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How are you using it?
+      options:
+        - CDN <script> (global build)
+        - npm import (ESM / CJS)
+        - React adapter
+        - Vue adapter
+        - Svelte adapter
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Browser / runtime
+      placeholder: "Chrome 140, Firefox 130, Node 20…"
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode / weather
+      options:
+        - auto (time + season only)
+        - auto with live weather (opt-in)
+        - forced light
+        - forced dark
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal HTML snippet, a sandbox link, or numbered steps.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Console errors, screenshots, the skin involved, etc.
