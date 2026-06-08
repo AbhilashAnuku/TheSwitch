@@ -1,0 +1,39 @@
+name: Daily audit
+
+# Runs the green gate every day and writes a short report to the run summary, so
+# you can see at a glance whether the project is still healthy after any edits.
+# It only CHECKS — it never publishes or makes anything public.
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Report
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Daily audit — $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "- Repo: **${{ github.repository }}**"
+            echo "- HEAD: \`$(git rev-parse --short HEAD)\` — $(git log -1 --pretty=%s)"
+            echo "- Last change: $(git log -1 --pretty=%cd --date=short)"
+            echo "- Result (typecheck · test · build): **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
