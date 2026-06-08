@@ -57,4 +57,6 @@ export interface TheSwitchOptions {
   presets?: Partial<Record<Skin, SkinTokens>>;
   /** Animate transitions between skins (respects prefers-reduced-motion). Default true. */
   transition?: boolean;
+  /** Mount the ambient graphics layer (snow / rain / stars / sun / fog / wind). Default true. */
+  ambient?: boolean;
 }

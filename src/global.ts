@@ -17,6 +17,7 @@
  *   data-longitude         Fixed longitude (paired with latitude;  no prompt).
  *   data-refresh           Refresh interval in minutes.
  *   data-widget            "false" disables the floating control widget.
+ *   data-ambient           "false" disables the ambient graphics layer.
  *   data-position          Widget corner, e.g. "bottom-right".
  *
  * Privacy: with no opt-in attributes this makes ZERO network calls and relies
@@ -77,6 +78,7 @@ function optionsFromElement(el: HTMLElement): TheSwitchOptions {
   if (refresh != null) opts.refreshMinutes = refresh;
 
   if (el.getAttribute("data-widget") === "false") opts.widget = false;
+  if (el.getAttribute("data-ambient") === "false") opts.ambient = false;
 
   const position = parsePosition(el.getAttribute("data-position"));
   if (position) opts.position = position;

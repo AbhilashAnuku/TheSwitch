@@ -106,7 +106,7 @@ describe("createWidget — Shadow DOM isolation", () => {
     widget = createWidget(makeDeps({ currentSkin: "stormy" }));
     const root = shadowRoot();
 
-    const label = root.querySelector<HTMLElement>(".skin-label");
+    const label = root.querySelector<HTMLElement>(".label");
     expect(label?.textContent).toBe("Storm");
   });
 });
@@ -189,7 +189,7 @@ describe("createWidget — handle", () => {
 
     widget.setSkin("night");
 
-    expect(root.querySelector<HTMLElement>(".skin-label")?.textContent).toBe(
+    expect(root.querySelector<HTMLElement>(".label")?.textContent).toBe(
       "Night",
     );
   });
