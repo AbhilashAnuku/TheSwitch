@@ -140,6 +140,7 @@ export class TheSwitch {
   private readonly storageEnabled: boolean;
   private readonly rotation: string[];
   private readonly onChange?: (skin: SkinDef) => void;
+  private readonly autoSource: "system" | "time" | "weather";
   private readonly lat?: number;
   private readonly lng?: number;
 
@@ -160,6 +161,7 @@ export class TheSwitch {
   private refreshSeq = 0;
   private applySeq = 0;
   private unbindControls: (() => void) | null = null;
+  private unwatchScheme: (() => void) | null = null;
 
   private readonly subscribers = new Set<(state: TheSwitchState) => void>();
   private readonly onVisibility = (): void => this.handleVisibility();
@@ -211,6 +213,7 @@ export class TheSwitch {
     this.useGeolocation_ = options.useGeolocation === true || w?.enabled === true;
     this.lat = options.latitude ?? w?.location?.lat;
     this.lng = options.longitude ?? w?.location?.lon;
+    this.autoSource = options.auto ?? "time";
 
     this.mode_ = (this.storageEnabled ? (readStored(STORAGE_KEY_MODE) as Mode | null) : null) ?? options.mode ?? "auto";
     if (this.mode_ !== "auto" && this.mode_ !== "light" && this.mode_ !== "dark") {
@@ -283,6 +286,21 @@ export class TheSwitch {
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", this.onVisibility);
     }
+    if (
+      this.autoSource === "system" &&
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function"
+    ) {
+      const mql = window.matchMedia("(prefers-color-scheme: dark)");
+      const onScheme = (): void => {
+        if (this.mode_ === "auto" && !this.manualSkin_) {
+          this.applyWeatherSkin(this.systemSkin(), null);
+          this.emit();
+        }
+      };
+      mql.addEventListener("change", onScheme);
+      this.unwatchScheme = () => mql.removeEventListener("change", onScheme);
+    }
     return this;
   }
 
@@ -351,6 +369,8 @@ export class TheSwitch {
     this.cancelInflight();
     this.unbindControls?.();
     this.unbindControls = null;
+    this.unwatchScheme?.();
+    this.unwatchScheme = null;
 
     if (typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", this.onVisibility);
@@ -416,6 +436,28 @@ export class TheSwitch {
       return;
     }
 
+    // "auto" resolves by the configured source.
+    if (this.autoSource === "system") {
+      this.applyWeatherSkin(this.systemSkin(), null);
+      this.emit();
+      return;
+    }
+    if (this.autoSource === "time") {
+      const opts: AtmosphereOptions = { useGeolocation: false };
+      if (this.options.now) opts.now = this.options.now;
+      let timeAtmos: Atmosphere | null = null;
+      try {
+        timeAtmos = await detectAtmosphere(opts);
+      } catch {
+        timeAtmos = null;
+      }
+      if (this.destroyed || this.manualSkin_) return;
+      this.applyWeatherSkin(timeAtmos ? timeAtmos.theme : "light", null);
+      this.emit();
+      return;
+    }
+
+    // "weather": full location + weather detection (opt-in).
     const seq = ++this.refreshSeq;
     this.cancelInflight();
     const controller =
@@ -522,6 +564,13 @@ export class TheSwitch {
   private handleVisibility(): void {
     if (typeof document === "undefined") return;
     if (!document.hidden) void this.refresh();
+  }
+
+  private systemSkin(): Skin {
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return "light";
   }
 
   private cancelInflight(): void {

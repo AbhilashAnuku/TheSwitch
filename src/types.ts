@@ -40,6 +40,8 @@ export interface WidgetOptions {
 export interface TheSwitchOptions {
   /** Theme mode. Default `auto`. */
   mode?: Mode;
+  /** What `auto` follows: "system" (OS), "time" (clock), or "weather" (location). Default "time". */
+  auto?: "system" | "time" | "weather";
   /** Explicit latitude (skips geolocation prompt when paired with longitude). */
   latitude?: number;
   /** Explicit longitude (skips geolocation prompt when paired with latitude). */
