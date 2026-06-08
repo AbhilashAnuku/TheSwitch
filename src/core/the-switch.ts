@@ -147,6 +147,7 @@ export class TheSwitch {
   private started = false;
   private destroyed = false;
   private refreshSeq = 0;
+  private applySeq = 0;
   private unbindControls: (() => void) | null = null;
 
   private readonly subscribers = new Set<(state: TheSwitchState) => void>();
@@ -282,9 +283,6 @@ export class TheSwitch {
       return;
     }
     this.applyNamedSkin(id, true);
-    if (this.storageEnabled) writeStored(STORAGE_KEY_SKIN, id);
-    this.emit();
-    this.notifyChange();
   }
 
   /** Advance to the next skin in the rotation. */
@@ -364,20 +362,27 @@ export class TheSwitch {
       : (undefined as unknown as HTMLElement);
   }
 
-  /** Apply a registered named skin (tokens + ambient + transition). */
+  /** Apply a registered named skin (tokens + ambient + transition), latest-wins. */
   private applyNamedSkin(id: string, withTransition: boolean): void {
     const def = getSkinDef(id);
     if (!def) return;
     this.manualSkin_ = id;
     this.atmosphere_ = null;
     const root = this.themingRoot();
+    const seq = ++this.applySeq;
 
     const swap = (): void => {
+      // A newer selection superseded this one mid-transition: drop it, so the
+      // skin, tokens, glow and ambient never land out of sync or out of order.
+      if (seq !== this.applySeq || this.destroyed) return;
       this.skin_ = id;
       applyTokens(id, tokensFor(def), root, { transition: this.transitionsEnabled });
       this.widget?.setSkin(id, def.name, iconForAmbient(def));
       this.widget?.setAtmosphere(null);
       this.ambient?.setSkin(nearestWeatherSkin(def));
+      if (this.storageEnabled) writeStored(STORAGE_KEY_SKIN, id);
+      this.emit();
+      this.notifyChange();
     };
 
     if (withTransition && this.transitionsEnabled && this.transitionType !== "none") {
