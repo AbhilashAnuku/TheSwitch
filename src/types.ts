@@ -40,8 +40,18 @@ export interface WidgetOptions {
 export interface TheSwitchOptions {
   /** Theme mode. Default `auto`. */
   mode?: Mode;
-  /** What `auto` follows: "system" (OS), "time" (clock), or "weather" (location). Default "time". */
-  auto?: "system" | "time" | "weather";
+  /**
+   * How `auto` resolves the atmosphere:
+   * - `"sync"`   — fuse time of day + season + (opt-in) location + live weather
+   *               into ONE cinematic atmosphere. The signals never compete; a
+   *               rainy dusk, a clear winter night and a hot clear noon each land
+   *               on their own skin. This is the adaptive default.
+   * - `"system"` — follow only the OS light/dark setting (no clock, no network).
+   *
+   * `"time"` and `"weather"` are accepted as deprecated aliases of `"sync"`
+   * (`time` = sync without geolocation; `weather` = sync with geolocation on).
+   */
+  auto?: "system" | "sync" | "time" | "weather";
   /** Explicit latitude (skips geolocation prompt when paired with longitude). */
   latitude?: number;
   /** Explicit longitude (skips geolocation prompt when paired with latitude). */

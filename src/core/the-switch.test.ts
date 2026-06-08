@@ -130,3 +130,54 @@ describe("destroy", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+describe("auto: sync — fuses time + season into one cinematic skin (no network)", () => {
+  /** Start a sync-auto engine pinned to `now`, capturing each resolved skin id. */
+  function syncAt(now: Date): { ts: TheSwitch; seen: string[] } {
+    const seen: string[] = [];
+    const ts = new TheSwitch({
+      target: root,
+      mode: "auto",
+      widget: false,
+      ambient: false,
+      transition: false,
+      storage: false, // isolate from mode/skin persisted by earlier tests
+      now,
+      onChange: (skin) => seen.push(skin.id),
+    });
+    return { ts, seen };
+  }
+
+  it("resolves a clear summer midday to the bright Desert skin", async () => {
+    const { ts, seen } = syncAt(new Date(2026, 6, 7, 13, 0, 0)); // July, summer, day
+    await ts.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(seen).toContain("desert");
+    ts.destroy();
+  });
+
+  it("resolves a clear winter night to Midnight", async () => {
+    const { ts, seen } = syncAt(new Date(2026, 0, 15, 23, 0, 0)); // Jan, winter, night
+    await ts.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(seen).toContain("midnight");
+    ts.destroy();
+  });
+
+  it("resolves dusk to the golden-hour Sunset skin", async () => {
+    const { ts, seen } = syncAt(new Date(2026, 3, 15, 19, 0, 0)); // April, spring, dusk
+    await ts.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(seen).toContain("sunset");
+    ts.destroy();
+  });
+
+  it("stays fully private — no fetch without a geolocation opt-in", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { ts } = syncAt(new Date(2026, 6, 7, 13, 0, 0));
+    await ts.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    ts.destroy();
+  });
+});

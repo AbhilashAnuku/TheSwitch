@@ -180,6 +180,47 @@ export const BUILTIN_SKINS: SkinDef[] = [
     glow: "0 0 30px rgba(224, 145, 59, 0.35)",
     ambient: { type: "sun", density: 0.6, speed: 0.6 },
   },
+  // --- Adaptive-only atmospheres -------------------------------------------
+  // Resolved by the "sync" auto mode for real conditions the nine headline
+  // skins don't cover (a bright clear day, an overcast sky, fog). They're
+  // registered but kept OUT of DEFAULT_ROTATION, so the manual gallery is
+  // unchanged — and each carries the *correct* ambient for honest effects.
+  {
+    id: "daylight",
+    name: "Daylight",
+    scheme: "light",
+    colors: {
+      bg: "#eef4ff", text: "#152033", primary: "#3b82f6", secondary: "#60a5fa",
+      accent: "#f5b942", surface: "#ffffff", border: "#d6e3f5", muted: "#5a6b86",
+    },
+    gradient: "linear-gradient(160deg, #f4f9ff, #dceafb 60%, #eaf2ff)",
+    glow: "0 0 30px rgba(59, 130, 246, 0.25)",
+    ambient: { type: "sun", density: 0.4, speed: 0.7 },
+  },
+  {
+    id: "overcast",
+    name: "Overcast",
+    scheme: "light",
+    colors: {
+      bg: "#dfe4ea", text: "#2a3340", primary: "#64748b", secondary: "#94a3b8",
+      accent: "#7c8aa0", surface: "#eceff3", border: "#cdd4dd", muted: "#5d6675",
+    },
+    gradient: "linear-gradient(160deg, #e7ebf0, #d3d9e0 60%, #c7ced6)",
+    glow: "0 0 24px rgba(100, 116, 139, 0.20)",
+    ambient: { type: "wind", density: 0.3, speed: 0.6 },
+  },
+  {
+    id: "mist",
+    name: "Mist",
+    scheme: "dark",
+    colors: {
+      bg: "#10151c", text: "#dfe6ee", primary: "#9fb3c8", secondary: "#7c93a8",
+      accent: "#b8c6d6", surface: "#19212b", border: "#2a3540", muted: "#7e8c9c",
+    },
+    gradient: "linear-gradient(160deg, #0e131a, #161d26 60%, #1b2531)",
+    glow: "0 0 26px rgba(159, 179, 200, 0.22)",
+    ambient: { type: "fog", density: 0.7, speed: 0.5 },
+  },
 ];
 
 /** The default rotation for nextSkin/prevSkin/autoBind — the brand's nine atmospheres. */

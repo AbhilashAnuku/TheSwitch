@@ -39,6 +39,8 @@ export interface Atmosphere {
   tempC: number | null;
   /** Wind speed in km/h from live weather, or null when unavailable. */
   windKmh: number | null;
+  /** Latitude this reading was taken at (drives hemisphere/polar fusion), or null. */
+  latitude?: number | null;
   theme: "light" | "dark";
   /** The derived visual skin for this atmosphere. */
   skin: Skin;
@@ -139,6 +141,7 @@ export async function detectAtmosphere(
     isDay,
     tempC,
     windKmh,
+    latitude: lat ?? null,
     theme,
     skin: "light",
     live,

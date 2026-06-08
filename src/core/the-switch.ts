@@ -140,7 +140,7 @@ export class TheSwitch {
   private readonly storageEnabled: boolean;
   private readonly rotation: string[];
   private readonly onChange?: (skin: SkinDef) => void;
-  private readonly autoSource: "system" | "time" | "weather";
+  private readonly autoSource: "system" | "sync";
   private readonly lat?: number;
   private readonly lng?: number;
 
@@ -213,7 +213,13 @@ export class TheSwitch {
     this.useGeolocation_ = options.useGeolocation === true || w?.enabled === true;
     this.lat = options.latitude ?? w?.location?.lat;
     this.lng = options.longitude ?? w?.location?.lon;
-    this.autoSource = options.auto ?? "time";
+
+    // Resolve the auto source. "system" stays plain OS light/dark; everything
+    // else collapses to the single fused "sync" resolver. The legacy "weather"
+    // alias additionally implied live geolocation, so preserve that.
+    const rawAuto = options.auto ?? "sync";
+    this.autoSource = rawAuto === "system" ? "system" : "sync";
+    if (rawAuto === "weather") this.useGeolocation_ = true;
 
     this.mode_ = (this.storageEnabled ? (readStored(STORAGE_KEY_MODE) as Mode | null) : null) ?? options.mode ?? "auto";
     if (this.mode_ !== "auto" && this.mode_ !== "light" && this.mode_ !== "dark") {
@@ -428,6 +434,45 @@ export class TheSwitch {
     }
   }
 
+  /**
+   * Apply an auto-resolved named skin: the same cinematic tokens + ambient as a
+   * manual pick, but WITHOUT marking it manual (so the refresh timer keeps
+   * adapting) and WITHOUT persisting it as a chosen skin. Latest-wins guarded,
+   * so a fast sequence of refreshes never lands tokens + ambient out of sync.
+   */
+  private applyResolvedSkin(id: string, atmos: Atmosphere | null): void {
+    const def = getSkinDef(id);
+    if (!def) {
+      // Unknown id (shouldn't happen): fall back to the legacy mood palette.
+      this.applyWeatherSkin(atmos ? deriveSkin(atmos) : "light", atmos);
+      return;
+    }
+    const root = this.themingRoot();
+    const seq = ++this.applySeq;
+
+    const swap = (): void => {
+      if (seq !== this.applySeq || this.destroyed) return;
+      this.skin_ = id;
+      if (atmos) applyAtmosphere(atmos, root);
+      applyTokens(id, tokensFor(def), root, { transition: this.transitionsEnabled });
+      this.widget?.setSkin(id, def.name, iconForAmbient(def));
+      this.widget?.setAtmosphere(toInfo(atmos));
+      this.climate?.setScene(sceneForSkin(def));
+      this.emit();
+      this.notifyChange();
+    };
+
+    if (this.transitionsEnabled && this.transitionType !== "none") {
+      runTransition(swap, {
+        type: def.transition?.type ?? this.transitionType,
+        duration: this.transitionDuration,
+        color: def.colors.bg,
+      });
+    } else {
+      swap();
+    }
+  }
+
   private async refresh(): Promise<void> {
     if (this.destroyed || this.manualSkin_) return;
 
@@ -436,28 +481,17 @@ export class TheSwitch {
       return;
     }
 
-    // "auto" resolves by the configured source.
+    // "system": follow only the OS light/dark setting — no clock, no network.
     if (this.autoSource === "system") {
       this.applyWeatherSkin(this.systemSkin(), null);
       this.emit();
       return;
     }
-    if (this.autoSource === "time") {
-      const opts: AtmosphereOptions = { useGeolocation: false };
-      if (this.options.now) opts.now = this.options.now;
-      let timeAtmos: Atmosphere | null = null;
-      try {
-        timeAtmos = await detectAtmosphere(opts);
-      } catch {
-        timeAtmos = null;
-      }
-      if (this.destroyed || this.manualSkin_) return;
-      this.applyWeatherSkin(timeAtmos ? timeAtmos.theme : "light", null);
-      this.emit();
-      return;
-    }
 
-    // "weather": full location + weather detection (opt-in).
+    // "sync": ONE fused reading of time + season + (opt-in) location + live
+    // weather. With no geolocation opt-in it stays fully private (local clock +
+    // hemisphere only) yet still resolves a cinematic skin from the hour and
+    // season — the signals are never an either/or.
     const seq = ++this.refreshSeq;
     this.cancelInflight();
     const controller =
@@ -473,14 +507,13 @@ export class TheSwitch {
     let atmos: Atmosphere | null = null;
     try { atmos = await detectAtmosphere(atmosOpts); } catch { atmos = null; }
 
-    if (seq !== this.refreshSeq || this.destroyed) return;
+    if (seq !== this.refreshSeq || this.destroyed || this.manualSkin_) return;
     this.abort = null;
     this.widget?.setBusy(false);
     if (!atmos) return;
 
-    const skin = deriveSkin(atmos);
     this.atmosphere_ = atmos;
-    this.applyWeatherSkin(skin, atmos);
+    this.applyResolvedSkin(resolveAtmosphereSkin(atmos), atmos);
     this.emit();
   }
 
@@ -601,6 +634,40 @@ export class TheSwitch {
 /** Create and start an atmosphere engine in one call. */
 export function createSwitch(options: TheSwitchOptions = {}): TheSwitch {
   return new TheSwitch(options).start();
+}
+
+/**
+ * Fuse a full atmosphere — time of day, season, live weather, and hemisphere —
+ * into ONE cinematic named skin. Nothing here is an either/or: a rainy dusk, a
+ * clear winter night, and a hot clear noon each resolve to their own skin, with
+ * the ambient that actually matches the sky (so "snow" never paints rain).
+ */
+function resolveAtmosphereSkin(a: Atmosphere): string {
+  // `daypart` already folds in `isDay` (daypartFor returns "night" when the sky
+  // is dark during day hours), so it's the single source of truth for the hour.
+  const night = a.daypart === "night";
+  const golden = a.daypart === "dawn" || a.daypart === "dusk";
+
+  // Dramatic weather carries its own darkness, so it wins at any hour.
+  switch (a.weather) {
+    case "storm": return "storm";
+    case "snow": return "snow";
+    case "rain": return "rain";
+    case "fog": return "mist";
+    case "clouds": return night ? "midnight" : "overcast";
+    default: break; // clear sky → time + season + latitude decide
+  }
+
+  if (night) {
+    const polar = a.latitude != null && Math.abs(a.latitude) >= 50;
+    if (polar && a.season === "winter") return "aurora"; // the long polar night
+    return "midnight";
+  }
+  if (golden) return "sunset"; // dawn & dusk → golden hour
+  // Full, clear daylight, tinted by the season.
+  if (a.season === "summer") return "desert";
+  if (a.season === "autumn") return "forest";
+  return "daylight"; // spring + clear winter days read bright and pale
 }
 
 /** Map an atmosphere to the compact info the HUD readout renders. */
