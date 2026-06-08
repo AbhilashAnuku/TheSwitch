@@ -83,6 +83,25 @@ function optionsFromElement(el: HTMLElement): TheSwitchOptions {
   const position = parsePosition(el.getAttribute("data-position"));
   if (position) opts.position = position;
 
+  const defaultSkin = el.getAttribute("data-default-skin");
+  if (defaultSkin) opts.defaultSkin = defaultSkin;
+
+  const intensity = el.getAttribute("data-intensity");
+  if (intensity === "subtle" || intensity === "normal" || intensity === "cinematic") {
+    opts.intensity = intensity;
+  }
+
+  const transition = el.getAttribute("data-transition");
+  if (
+    transition === "portal" || transition === "flash" ||
+    transition === "fade" || transition === "none"
+  ) {
+    opts.transition = { type: transition };
+  }
+
+  // Auto-wire data-switch-* controls in the drop-in path (opt out with "false").
+  if (el.getAttribute("data-autobind") !== "false") opts.autoBind = true;
+
   return opts;
 }
 

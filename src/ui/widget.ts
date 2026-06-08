@@ -74,8 +74,11 @@ const DAYPART_LABELS: Record<string, string> = {
 };
 
 export interface WidgetDeps {
-  /** The skin to show on first paint. */
-  currentSkin: Skin;
+  /** The skin id to show on first paint. */
+  currentSkin: string;
+  /** Optional display label/icon for the initial skin (used by named skins). */
+  currentLabel?: string;
+  currentIcon?: string;
   /** The theme mode to show as selected on first paint. */
   currentMode: Mode;
   /** Whether the live-weather toggle starts on. Opt-in: should be false. */
@@ -91,8 +94,8 @@ export interface WidgetDeps {
 }
 
 export interface WidgetHandle {
-  /** Update the displayed skin (icon + label). */
-  setSkin(skin: Skin): void;
+  /** Update the displayed skin (icon + label). Pass label/icon for named skins. */
+  setSkin(skin: string, label?: string, icon?: string): void;
   /** Update the atmosphere readout (weather + temperature). */
   setAtmosphere(info: AtmosphereInfo | null): void;
   /** Update which theme mode is shown as selected. */
@@ -287,11 +290,14 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 `;
 
-function skinLabel(skin: Skin): string {
-  return SKIN_LABELS[skin];
+function cap(s: string): string {
+  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
 }
-function skinIcon(skin: Skin): string {
-  return SKIN_ICONS[skin];
+function skinLabel(skin: string, label?: string): string {
+  return label ?? SKIN_LABELS[skin as Skin] ?? cap(skin);
+}
+function skinIcon(skin: string, icon?: string): string {
+  return icon ?? SKIN_ICONS[skin as Skin] ?? "🎨";
 }
 
 function subtitleFor(info: AtmosphereInfo | null): string {
@@ -497,11 +503,11 @@ export function createWidget(deps: WidgetDeps): WidgetHandle {
   root.appendChild(panel);
 
   // ---- Render helpers -------------------------------------------------------
-  function renderSkin(skin: Skin): void {
-    const icon = skinIcon(skin);
-    iconEl.textContent = icon;
-    iconEl.style.display = icon ? "" : "none";
-    labelEl.textContent = skinLabel(skin);
+  function renderSkin(skin: string, label?: string, icon?: string): void {
+    const ic = skinIcon(skin, icon);
+    iconEl.textContent = ic;
+    iconEl.style.display = ic ? "" : "none";
+    labelEl.textContent = skinLabel(skin, label);
   }
 
   function renderAtmosphere(info: AtmosphereInfo | null): void {
@@ -509,7 +515,7 @@ export function createWidget(deps: WidgetDeps): WidgetHandle {
     tempEl.textContent = tempFor(info);
   }
 
-  renderSkin(deps.currentSkin);
+  renderSkin(deps.currentSkin, deps.currentLabel, deps.currentIcon);
   renderAtmosphere(deps.currentAtmosphere ?? null);
   selectMode(currentMode, false);
   reflectLiveWeather(liveWeather);
@@ -518,9 +524,9 @@ export function createWidget(deps: WidgetDeps): WidgetHandle {
 
   // ---- Public handle --------------------------------------------------------
   return {
-    setSkin(skin: Skin): void {
+    setSkin(skin: string, label?: string, icon?: string): void {
       if (destroyed) return;
-      renderSkin(skin);
+      renderSkin(skin, label, icon);
     },
     setAtmosphere(info: AtmosphereInfo | null): void {
       if (destroyed) return;

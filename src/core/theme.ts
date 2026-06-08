@@ -10,6 +10,7 @@
  */
 import type { Skin } from "./atmosphere";
 import type { SkinTokens } from "../types";
+import { ALL_TOKEN_KEYS } from "./skins";
 
 /** The CSS custom properties every skin defines. */
 const TOKEN_KEYS = [
@@ -227,6 +228,26 @@ export function applyTheme(
 }
 
 /**
+ * Apply an arbitrary token map (e.g. a registered named skin) to a host element,
+ * with the same transition handling as {@link applyTheme}.
+ */
+export function applyTokens(
+  skinId: string,
+  tokens: Record<string, string>,
+  el: HTMLElement = typeof document !== "undefined"
+    ? document.documentElement
+    : (undefined as unknown as HTMLElement),
+  opts: { transition?: boolean } = {},
+): void {
+  if (!el) return;
+  manageTransitionStyle(opts.transition === true && !prefersReducedMotion());
+  for (const [key, value] of Object.entries(tokens)) {
+    el.style.setProperty(key, value);
+  }
+  el.setAttribute("data-atmos-skin", skinId);
+}
+
+/**
  * Remove all TheSwitch CSS variables, the `data-atmos-skin` attribute, and the
  * managed transition <style> element from an element.
  *
@@ -238,7 +259,7 @@ export function clearTheme(
     : (undefined as unknown as HTMLElement),
 ): void {
   if (!el) return;
-  for (const key of TOKEN_KEYS) {
+  for (const key of ALL_TOKEN_KEYS) {
     el.style.removeProperty(key);
   }
   el.removeAttribute("data-atmos-skin");

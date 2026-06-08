@@ -6,9 +6,9 @@
  * subpath entries (`theswitch/react`, `/vue`, `/svelte`) and are not
  * pulled in here so the main bundle stays free of peer deps.
  */
-import { TheSwitch } from "./core/the-switch";
+import { TheSwitch, createSwitch } from "./core/the-switch";
 
-export { TheSwitch };
+export { TheSwitch, createSwitch };
 export default TheSwitch;
 
 export type {
@@ -34,3 +34,25 @@ export { detectAtmosphere, applyAtmosphere, deriveSkin } from "./core/atmosphere
 export { applyTheme, clearTheme, SKIN_PRESETS } from "./core/theme";
 
 export { fetchWeather } from "./providers/weather";
+
+export { applyTokens } from "./core/theme";
+export { runTransition } from "./core/transitions";
+
+export {
+  defineSkin,
+  registerSkin,
+  getSkinDef,
+  hasSkin,
+  listSkins,
+  tokensFor,
+  BUILTIN_SKINS,
+  DEFAULT_ROTATION,
+} from "./core/skins";
+
+export type {
+  SkinDef,
+  SkinColors,
+  AmbientType,
+  TransitionType,
+  Intensity,
+} from "./core/skins";

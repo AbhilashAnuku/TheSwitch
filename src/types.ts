@@ -15,6 +15,7 @@ export type {
 } from "./core/atmosphere";
 
 import type { Skin } from "./core/atmosphere";
+import type { Intensity, SkinDef, TransitionType } from "./core/skins";
 
 /**
  * How TheSwitch chooses a theme:
@@ -55,8 +56,27 @@ export interface TheSwitchOptions {
   widget?: boolean | WidgetOptions;
   /** Per-skin token overrides merged over the built-in presets. */
   presets?: Partial<Record<Skin, SkinTokens>>;
-  /** Animate transitions between skins (respects prefers-reduced-motion). Default true. */
-  transition?: boolean;
-  /** Mount the ambient graphics layer (snow / rain / stars / sun / fog / wind). Default true. */
-  ambient?: boolean;
+  /**
+   * Skin transition. `true`/`false` toggles the default; pass an object to pick
+   * the style and duration. Respects prefers-reduced-motion.
+   */
+  transition?: boolean | { type?: TransitionType; duration?: number };
+  /** Mount the ambient graphics layer. Default true. Accepts an intensity. */
+  ambient?: boolean | { enabled?: boolean; intensity?: Intensity };
+  /** Initial skin id (e.g. "midnight"). Overrides weather-auto on start. */
+  defaultSkin?: string;
+  /** Skin ids in the next/prev + autoBind rotation. Default: built-in atmospheres. */
+  skins?: string[];
+  /** Extra custom skins to register before start. */
+  customSkins?: SkinDef[];
+  /** Ambient loudness. Default "normal". */
+  intensity?: Intensity;
+  /** Auto-wire `data-switch-*` controls found on the page. Default false. */
+  autoBind?: boolean;
+  /** Persist the chosen skin/mode in localStorage. Default true. */
+  storage?: boolean;
+  /** Called whenever the active skin changes. */
+  onChange?: (skin: SkinDef) => void;
+  /** Cursor engine (v1.5). Accepted now; no-op until implemented. */
+  cursor?: boolean | { enabled?: boolean; style?: string };
 }

@@ -13,11 +13,10 @@ import { ref, shallowRef, onScopeDispose } from "vue";
 import type { Ref } from "vue";
 import { TheSwitch } from "../core/the-switch";
 import type { Mode, TheSwitchOptions } from "../core/the-switch";
-import type { Skin } from "../core/atmosphere";
 
 export interface UseTheSwitch {
-  /** The currently applied skin, or null before the first detection settles. */
-  skin: Ref<Skin | null>;
+  /** The currently applied skin id, or null before the first skin settles. */
+  skin: Ref<string | null>;
   /** The active mode preference: "auto" | "light" | "dark". */
   mode: Ref<Mode>;
   /** Override the mode preference. */
@@ -34,7 +33,7 @@ export interface UseTheSwitch {
 export function useTheSwitch(options: TheSwitchOptions = {}): UseTheSwitch {
   const engine = new TheSwitch(options);
 
-  const skin = shallowRef<Skin | null>(engine.skin);
+  const skin = shallowRef<string | null>(engine.skin);
   const mode = ref<Mode>(engine.mode) as Ref<Mode>;
 
   const unsubscribe = engine.subscribe((state) => {

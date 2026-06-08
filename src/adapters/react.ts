@@ -12,11 +12,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { TheSwitch } from "../core/the-switch";
 import type { Mode, TheSwitchOptions } from "../core/the-switch";
-import type { Skin } from "../core/atmosphere";
 
 export interface UseTheSwitch {
-  /** The currently applied skin, or null before the first detection settles. */
-  skin: Skin | null;
+  /** The currently applied skin id, or null before the first skin settles. */
+  skin: string | null;
   /** The active mode preference: "auto" | "light" | "dark". */
   mode: Mode;
   /** Override the mode preference. */
@@ -40,7 +39,7 @@ export function useTheSwitch(options: TheSwitchOptions = {}): UseTheSwitch {
   }
   const engine = engineRef.current;
 
-  const [skin, setSkin] = useState<Skin | null>(() => engine.skin);
+  const [skin, setSkin] = useState<string | null>(() => engine.skin);
   const [mode, setModeState] = useState<Mode>(() => engine.mode);
 
   useEffect(() => {

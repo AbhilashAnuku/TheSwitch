@@ -24,6 +24,8 @@ export interface AmbientOptions {
 export interface AmbientHandle {
   /** Cross-fade to a new skin's scene. */
   setSkin(skin: Skin): void;
+  /** Set the overall layer opacity (used for intensity). */
+  setOpacity(opacity: number): void;
   /** Remove the layer and stop all animation. */
   destroy(): void;
 }
@@ -150,7 +152,7 @@ function reducedMotion(): boolean {
 }
 
 export function createAmbient(skin: Skin, opts: AmbientOptions = {}): AmbientHandle {
-  const noop: AmbientHandle = { setSkin() {}, destroy() {} };
+  const noop: AmbientHandle = { setSkin() {}, setOpacity() {}, destroy() {} };
   if (typeof document === "undefined") return noop;
 
   const host = document.createElement("div");
@@ -182,6 +184,9 @@ export function createAmbient(skin: Skin, opts: AmbientOptions = {}): AmbientHan
       setSkin(next) {
         host.style.background = SCENES[next].backdrop;
         host.style.mixBlendMode = SCENES[next].blend;
+      },
+      setOpacity(o) {
+        host.style.opacity = String(o);
       },
       destroy() {
         host.remove();
@@ -402,6 +407,9 @@ export function createAmbient(skin: Skin, opts: AmbientOptions = {}): AmbientHan
         step(0);
         draw();
       }
+    },
+    setOpacity(o: number): void {
+      host.style.opacity = String(o);
     },
     destroy(): void {
       if (destroyed) return;

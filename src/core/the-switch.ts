@@ -1,10 +1,11 @@
 /**
- * TheSwitch — the headless engine.
+ * TheSwitch — the atmosphere engine.
  *
- * Orchestrates detection (time / season / opt-in weather), skin derivation,
- * theming, the optional on-page widget, and periodic refresh. Privacy-first:
- * with no opt-in it makes ZERO network calls. Framework adapters wrap this
- * class; it owns all DOM, timer, and network lifecycle.
+ * One config turns normal theme switching into a full visual system: named
+ * cinematic skins (palette + gradient + glow + ambient), an optional weather
+ * "auto" mode, cinematic transitions, intensity, persistence, and `autoBind`
+ * for `data-switch-*` controls. Privacy-first: with no opt-in it makes ZERO
+ * network calls. Framework adapters wrap this class.
  */
 import {
   applyAtmosphere,
@@ -14,7 +15,20 @@ import {
   type AtmosphereOptions,
   type Skin,
 } from "./atmosphere";
-import { applyTheme, clearTheme } from "./theme";
+import { applyTheme, applyTokens, clearTheme } from "./theme";
+import {
+  DEFAULT_ROTATION,
+  getSkinDef,
+  hasSkin,
+  intensityScale,
+  registerSkin,
+  tokensFor,
+  type AmbientType,
+  type Intensity,
+  type SkinDef,
+  type TransitionType,
+} from "./skins";
+import { runTransition } from "./transitions";
 import {
   createWidget,
   type AtmosphereInfo,
@@ -33,84 +47,97 @@ export type { Mode } from "../types";
 /** Where the floating widget anchors within the viewport. */
 export type Position = NonNullable<WidgetOptions["position"]>;
 
-/**
- * Options accepted by {@link TheSwitch}. Extends the public option surface with
- * a couple of ergonomic aliases used by the standalone/Svelte entry points:
- * `target` (alias of `root`) and `position` (top-level widget position).
- */
 export interface TheSwitchOptions extends BaseOptions {
   /** Alias of {@link BaseOptions.root} — the element to theme. */
   target?: HTMLElement;
   /** Widget corner; shorthand for `widget: { position }`. */
   position?: Position;
+  /** Opt-in live weather as a nested config (alias of useGeolocation + location). */
+  weather?: { enabled?: boolean; provider?: string; location?: { lat: number; lon: number } };
 }
 
 /** A snapshot of the engine's reactive state, broadcast to subscribers. */
 export interface TheSwitchState {
-  /** The currently applied skin, or null before the first detection settles. */
-  skin: Skin | null;
-  /** The active mode preference. */
+  skin: string | null;
   mode: Mode;
-  /** Whether live (location + weather) atmosphere is opted in. */
   liveWeather: boolean;
-  /** The full atmosphere snapshot, or null before the first detection. */
+  intensity: Intensity;
   atmosphere: Atmosphere | null;
 }
 
-/** A function returned by {@link TheSwitch.subscribe} that detaches the listener. */
 export type Unsubscribe = () => void;
 
-/** Default minutes between automatic refreshes. */
 const DEFAULT_REFRESH_MINUTES = 15;
+const STORAGE_KEY_MODE = "the-switch:mode";
+const STORAGE_KEY_SKIN = "the-switch:skin";
 
-const STORAGE_KEY = "the-switch:mode";
+const WEATHER_SKINS = new Set<string>([
+  "light", "dark", "sunny", "snow", "windy", "watery", "foggy", "stormy", "night",
+]);
 
-function readStoredMode(): Mode | null {
-  try {
-    if (typeof localStorage === "undefined") return null;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === "auto" || raw === "light" || raw === "dark") return raw;
-  } catch {
-    /* storage blocked (private mode / SSR) — ignore */
-  }
-  return null;
+const AMBIENT_WEATHER: Record<AmbientType, Skin> = {
+  stars: "night", snow: "snow", rain: "watery", storm: "stormy",
+  fog: "foggy", wind: "windy", sun: "sunny", aurora: "night", none: "dark",
+};
+const AMBIENT_ICON: Record<AmbientType, string> = {
+  stars: "🌌", snow: "❄️", rain: "🌧️", storm: "⛈️", fog: "🌫️",
+  wind: "🌬️", sun: "☀️", aurora: "🌠", none: "🎨",
+};
+
+function nearestWeatherSkin(def: SkinDef): Skin {
+  const t = def.ambient?.type ?? "none";
+  if (t === "none") return def.scheme === "light" ? "light" : "dark";
+  return AMBIENT_WEATHER[t];
+}
+function iconForAmbient(def: SkinDef): string {
+  return AMBIENT_ICON[def.ambient?.type ?? "none"];
+}
+function opacityFor(i: Intensity): number {
+  return i === "subtle" ? 0.4 : i === "cinematic" ? 0.82 : 0.58;
 }
 
-function writeStoredMode(mode: Mode): void {
+function readStored(key: string): string | null {
   try {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(STORAGE_KEY, mode);
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeStored(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(key, value);
   } catch {
     /* storage blocked — ignore */
   }
 }
 
-/**
- * The headless adaptive-theming engine.
- *
- * @example
- * const ts = new TheSwitch({ mode: "auto" }).start();
- * ts.setMode("dark");
- * // ...later
- * ts.destroy();
- */
 export class TheSwitch {
-  /** Library version, surfaced for diagnostics. */
   static readonly version = "0.1.0";
-
-  /** Re-exported for convenience: detect an atmosphere without an engine. */
   static readonly detectAtmosphere = detectAtmosphere;
+  /** Factory: `TheSwitch.create({...})` === `createSwitch({...})`. */
+  static readonly create = createSwitch;
 
   private readonly options: TheSwitchOptions;
   private readonly root: HTMLElement | null;
-  private readonly transition: boolean;
+  private readonly transitionsEnabled: boolean;
+  private readonly transitionType: TransitionType;
+  private readonly transitionDuration: number;
   private readonly ambientEnabled: boolean;
   private readonly presets?: Partial<Record<Skin, SkinTokens>>;
   private readonly refreshMs: number;
+  private readonly storageEnabled: boolean;
+  private readonly rotation: string[];
+  private readonly onChange?: (skin: SkinDef) => void;
+  private readonly lat?: number;
+  private readonly lng?: number;
 
   private mode_: Mode;
   private useGeolocation_: boolean;
-  private skin_: Skin | null = null;
+  private intensity_: Intensity;
+  private skin_: string | null = null;
+  /** The active forced/named skin id, or null when in weather-auto/forced mode. */
+  private manualSkin_: string | null = null;
   private atmosphere_: Atmosphere | null = null;
 
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -120,6 +147,7 @@ export class TheSwitch {
   private started = false;
   private destroyed = false;
   private refreshSeq = 0;
+  private unbindControls: (() => void) | null = null;
 
   private readonly subscribers = new Set<(state: TheSwitchState) => void>();
   private readonly onVisibility = (): void => this.handleVisibility();
@@ -127,55 +155,88 @@ export class TheSwitch {
   constructor(options: TheSwitchOptions = {}) {
     this.options = options;
     this.root = options.root ?? options.target ?? null;
-    this.transition = options.transition !== false;
-    this.ambientEnabled = options.ambient !== false;
     this.presets = options.presets;
+    this.storageEnabled = options.storage !== false;
+    this.onChange = options.onChange;
+
+    // Transition config (boolean | { type, duration }).
+    const tr = options.transition;
+    if (tr === false) {
+      this.transitionsEnabled = false;
+      this.transitionType = "none";
+      this.transitionDuration = 0;
+    } else if (tr === true || tr === undefined) {
+      this.transitionsEnabled = true;
+      this.transitionType = "fade";
+      this.transitionDuration = 700;
+    } else {
+      this.transitionsEnabled = true;
+      this.transitionType = tr.type ?? "fade";
+      this.transitionDuration = tr.duration ?? 700;
+    }
+
+    // Ambient config (boolean | { enabled, intensity }).
+    const amb = options.ambient;
+    const ambObj = typeof amb === "object" && amb !== null ? amb : null;
+    this.ambientEnabled = amb === false ? false : ambObj ? ambObj.enabled !== false : true;
+    this.intensity_ = options.intensity ?? ambObj?.intensity ?? "normal";
+
     const minutes =
       typeof options.refreshMinutes === "number" && options.refreshMinutes > 0
         ? options.refreshMinutes
         : DEFAULT_REFRESH_MINUTES;
     this.refreshMs = minutes * 60_000;
 
-    this.mode_ = readStoredMode() ?? options.mode ?? "auto";
-    this.useGeolocation_ = options.useGeolocation === true;
+    // Register any custom skins before resolving the rotation.
+    if (options.customSkins) for (const s of options.customSkins) registerSkin(s);
+    const wanted = options.skins ?? DEFAULT_ROTATION;
+    const rotation = wanted.filter((id) => hasSkin(id));
+    this.rotation = rotation.length ? rotation : DEFAULT_ROTATION;
+
+    // Weather config (nested form maps onto useGeolocation + coords).
+    const w = options.weather;
+    this.useGeolocation_ = options.useGeolocation === true || w?.enabled === true;
+    this.lat = options.latitude ?? w?.location?.lat;
+    this.lng = options.longitude ?? w?.location?.lon;
+
+    this.mode_ = (this.storageEnabled ? (readStored(STORAGE_KEY_MODE) as Mode | null) : null) ?? options.mode ?? "auto";
+    if (this.mode_ !== "auto" && this.mode_ !== "light" && this.mode_ !== "dark") {
+      this.mode_ = "auto";
+    }
+
+    // Resolve the initial named skin: persisted > defaultSkin.
+    const stored = this.storageEnabled ? readStored(STORAGE_KEY_SKIN) : null;
+    const initialSkin = (stored && hasSkin(stored)) ? stored
+      : (options.defaultSkin && hasSkin(options.defaultSkin)) ? options.defaultSkin
+      : null;
+    this.manualSkin_ = initialSkin;
   }
 
   // ---- Reactive state -------------------------------------------------------
 
-  /** The currently applied skin, or null before the first detection settles. */
-  get skin(): Skin | null {
-    return this.skin_;
+  get skin(): string | null { return this.skin_; }
+  get mode(): Mode { return this.mode_; }
+  get liveWeather(): boolean { return this.useGeolocation_; }
+  get intensity(): Intensity { return this.intensity_; }
+
+  /** The active skin's definition, if it's a registered named skin. */
+  getSkin(): SkinDef | null {
+    return this.skin_ ? getSkinDef(this.skin_) ?? null : null;
   }
 
-  /** The active mode preference: "auto" | "light" | "dark". */
-  get mode(): Mode {
-    return this.mode_;
-  }
-
-  /** Whether live (location + weather) atmosphere is opted in. */
-  get liveWeather(): boolean {
-    return this.useGeolocation_;
-  }
-
-  /** A snapshot of the engine's current state. */
   getState(): TheSwitchState {
     return {
       skin: this.skin_,
       mode: this.mode_,
       liveWeather: this.useGeolocation_,
+      intensity: this.intensity_,
       atmosphere: this.atmosphere_,
     };
   }
 
-  /**
-   * Subscribe to state changes. The listener is invoked on every skin/mode/
-   * live-weather change (not immediately). Returns an unsubscribe function.
-   */
   subscribe(listener: (state: TheSwitchState) => void): Unsubscribe {
     this.subscribers.add(listener);
-    return () => {
-      this.subscribers.delete(listener);
-    };
+    return () => { this.subscribers.delete(listener); };
   }
 
   private emit(): void {
@@ -184,20 +245,27 @@ export class TheSwitch {
     for (const listener of this.subscribers) listener(state);
   }
 
+  private notifyChange(): void {
+    if (!this.onChange || !this.skin_) return;
+    const def = getSkinDef(this.skin_);
+    if (def) this.onChange(def);
+  }
+
   // ---- Lifecycle ------------------------------------------------------------
 
-  /**
-   * Start the engine: run the first detection, apply the theme, mount the
-   * widget (unless disabled), and schedule periodic refresh. Idempotent.
-   */
   start(): this {
     if (this.destroyed || this.started) return this;
     this.started = true;
 
-    void this.refresh();
+    if (this.manualSkin_) {
+      this.applyNamedSkin(this.manualSkin_, false);
+    } else {
+      void this.refresh();
+    }
     this.mountWidget();
     this.mountAmbient();
     this.scheduleRefresh();
+    if (this.options.autoBind) this.bindControls();
 
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", this.onVisibility);
@@ -205,67 +273,74 @@ export class TheSwitch {
     return this;
   }
 
-  /**
-   * Set the theme mode. `light`/`dark` force the matching skin with no weather
-   * and no network; `auto` resumes time/season/(opt-in)weather detection. The
-   * choice is persisted.
-   */
+  /** Force a named skin (e.g. "storm"). The headline API. */
+  setSkin(id: string): void {
+    if (this.destroyed) return;
+    if (!hasSkin(id)) {
+      // Allow "auto"/light/dark as conveniences that route through setMode.
+      if (id === "auto" || id === "light" || id === "dark") { this.setMode(id); return; }
+      return;
+    }
+    this.applyNamedSkin(id, true);
+    if (this.storageEnabled) writeStored(STORAGE_KEY_SKIN, id);
+    this.emit();
+    this.notifyChange();
+  }
+
+  /** Advance to the next skin in the rotation. */
+  nextSkin(): void { this.cycle(1); }
+  /** Go to the previous skin in the rotation. */
+  prevSkin(): void { this.cycle(-1); }
+
+  private cycle(dir: number): void {
+    if (this.rotation.length === 0) return;
+    const current = this.manualSkin_ ?? this.skin_;
+    let idx = current ? this.rotation.indexOf(current) : -1;
+    if (idx === -1) idx = dir > 0 ? -1 : 0;
+    const next = this.rotation[(idx + dir + this.rotation.length) % this.rotation.length];
+    if (next) this.setSkin(next);
+  }
+
   setMode(mode: Mode): void {
     if (this.destroyed) return;
     this.mode_ = mode;
-    writeStoredMode(mode);
-    this.widget?.setMode(mode);
-    if (mode === "light" || mode === "dark") {
-      this.applyForcedMode(mode);
-    } else {
-      void this.refresh();
+    this.manualSkin_ = null; // a mode choice exits manual-skin mode
+    if (this.storageEnabled) {
+      writeStored(STORAGE_KEY_MODE, mode);
+      try { localStorage.removeItem(STORAGE_KEY_SKIN); } catch { /* ignore */ }
     }
+    this.widget?.setMode(mode);
+    if (mode === "light" || mode === "dark") this.applyForcedMode(mode);
+    else void this.refresh();
     this.emit();
   }
 
-  /**
-   * Force a specific skin directly (e.g. a manual theme picker). Overrides
-   * detection until the next {@link setMode}. Updates the tokens, the ambient
-   * graphics, and the HUD together.
-   */
-  setSkin(skin: Skin): void {
+  /** Set ambient loudness (scales the ambient layer). */
+  setIntensity(intensity: Intensity): void {
     if (this.destroyed) return;
-    this.cancelInflight();
-    this.atmosphere_ = null;
-    this.applySkin(skin, null);
+    this.intensity_ = intensity;
+    this.ambient?.setOpacity(opacityFor(intensity) * Math.min(1, intensityScale(intensity)));
     this.emit();
   }
 
-  /**
-   * Toggle live weather. Turning it on opts into geolocation/weather (a network
-   * request will be made on the next detection); turning it off returns to a
-   * fully private, time/season-only atmosphere with no network.
-   */
   setLiveWeather(on: boolean): void {
     if (this.destroyed) return;
     if (this.useGeolocation_ === on) return;
     this.useGeolocation_ = on;
     if (!on) this.cancelInflight();
-    if (this.mode_ === "auto") {
-      void this.refresh();
-    }
+    if (this.mode_ === "auto" && !this.manualSkin_) void this.refresh();
     this.emit();
   }
 
-  /**
-   * Stop the engine: cancel timers and in-flight requests, remove the widget,
-   * detach listeners, and clear the applied theme. Safe to call more than once.
-   */
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.refreshSeq++;
 
-    if (this.timer !== null) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+    if (this.timer !== null) { clearInterval(this.timer); this.timer = null; }
     this.cancelInflight();
+    this.unbindControls?.();
+    this.unbindControls = null;
 
     if (typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", this.onVisibility);
@@ -289,11 +364,36 @@ export class TheSwitch {
       : (undefined as unknown as HTMLElement);
   }
 
-  /** Run a detection cycle and apply the result. No-op for forced modes. */
-  private async refresh(): Promise<void> {
-    if (this.destroyed) return;
+  /** Apply a registered named skin (tokens + ambient + transition). */
+  private applyNamedSkin(id: string, withTransition: boolean): void {
+    const def = getSkinDef(id);
+    if (!def) return;
+    this.manualSkin_ = id;
+    this.atmosphere_ = null;
+    const root = this.themingRoot();
 
-    // Forced light/dark never detect (and never touch the network).
+    const swap = (): void => {
+      this.skin_ = id;
+      applyTokens(id, tokensFor(def), root, { transition: this.transitionsEnabled });
+      this.widget?.setSkin(id, def.name, iconForAmbient(def));
+      this.widget?.setAtmosphere(null);
+      this.ambient?.setSkin(nearestWeatherSkin(def));
+    };
+
+    if (withTransition && this.transitionsEnabled && this.transitionType !== "none") {
+      runTransition(swap, {
+        type: def.transition?.type ?? this.transitionType,
+        duration: this.transitionDuration,
+        color: def.colors.bg,
+      });
+    } else {
+      swap();
+    }
+  }
+
+  private async refresh(): Promise<void> {
+    if (this.destroyed || this.manualSkin_) return;
+
     if (this.mode_ === "light" || this.mode_ === "dark") {
       this.applyForcedMode(this.mode_);
       return;
@@ -306,23 +406,14 @@ export class TheSwitch {
     this.abort = controller;
     this.widget?.setBusy(this.useGeolocation_);
 
-    const atmosOpts: AtmosphereOptions = {
-      useGeolocation: this.useGeolocation_,
-    };
-    if (this.options.latitude != null) atmosOpts.latitude = this.options.latitude;
-    if (this.options.longitude != null) {
-      atmosOpts.longitude = this.options.longitude;
-    }
+    const atmosOpts: AtmosphereOptions = { useGeolocation: this.useGeolocation_ };
+    if (this.lat != null) atmosOpts.latitude = this.lat;
+    if (this.lng != null) atmosOpts.longitude = this.lng;
     if (this.options.now) atmosOpts.now = this.options.now;
 
     let atmos: Atmosphere | null = null;
-    try {
-      atmos = await detectAtmosphere(atmosOpts);
-    } catch {
-      atmos = null;
-    }
+    try { atmos = await detectAtmosphere(atmosOpts); } catch { atmos = null; }
 
-    // A newer refresh (or destroy) superseded this one — drop the result.
     if (seq !== this.refreshSeq || this.destroyed) return;
     this.abort = null;
     this.widget?.setBusy(false);
@@ -330,23 +421,23 @@ export class TheSwitch {
 
     const skin = deriveSkin(atmos);
     this.atmosphere_ = atmos;
-    this.applySkin(skin, atmos);
+    this.applyWeatherSkin(skin, atmos);
     this.emit();
   }
 
-  /** Apply a forced light/dark skin without any detection or network. */
   private applyForcedMode(mode: "light" | "dark"): void {
     this.cancelInflight();
     this.atmosphere_ = null;
-    this.applySkin(mode, null);
+    this.applyWeatherSkin(mode, null);
   }
 
-  private applySkin(skin: Skin, atmos: Atmosphere | null): void {
+  /** Apply a weather/forced skin (the original weather palette path). */
+  private applyWeatherSkin(skin: Skin, atmos: Atmosphere | null): void {
     this.skin_ = skin;
     const root = this.themingRoot();
     if (atmos) applyAtmosphere(atmos, root);
     applyTheme(skin, root, {
-      transition: this.transition,
+      transition: this.transitionsEnabled,
       ...(this.presets ? { presets: this.presets } : {}),
     });
     this.widget?.setSkin(skin);
@@ -357,8 +448,7 @@ export class TheSwitch {
   private resolveWidgetOptions(): WidgetOptions | false {
     const w = this.options.widget;
     if (w === false) return false;
-    const base: WidgetOptions =
-      typeof w === "object" && w !== null ? { ...w } : {};
+    const base: WidgetOptions = typeof w === "object" && w !== null ? { ...w } : {};
     if (base.position === undefined && this.options.position !== undefined) {
       base.position = this.options.position;
     }
@@ -370,9 +460,12 @@ export class TheSwitch {
     const widgetOpts = this.resolveWidgetOptions();
     if (widgetOpts === false) return;
 
+    const named = this.skin_ ? getSkinDef(this.skin_) : undefined;
     try {
       this.widget = createWidget({
         currentSkin: this.skin_ ?? "light",
+        currentLabel: named?.name,
+        currentIcon: named ? iconForAmbient(named) : undefined,
         currentMode: this.mode_,
         liveWeather: this.useGeolocation_,
         currentAtmosphere: toInfo(this.atmosphere_),
@@ -381,16 +474,20 @@ export class TheSwitch {
         options: widgetOpts,
       });
     } catch {
-      // Widget is best-effort; the engine still themes the page without it.
       this.widget = null;
     }
   }
 
-  /** Mount the ambient graphics layer (unless disabled). Best-effort. */
   private mountAmbient(): void {
     if (!this.ambientEnabled || typeof document === "undefined") return;
+    const named = this.skin_ ? getSkinDef(this.skin_) : undefined;
+    const seed: Skin = named
+      ? nearestWeatherSkin(named)
+      : WEATHER_SKINS.has(this.skin_ ?? "")
+        ? (this.skin_ as Skin)
+        : "light";
     try {
-      this.ambient = createAmbient(this.skin_ ?? "light");
+      this.ambient = createAmbient(seed, { opacity: opacityFor(this.intensity_) });
     } catch {
       this.ambient = null;
     }
@@ -406,16 +503,37 @@ export class TheSwitch {
 
   private handleVisibility(): void {
     if (typeof document === "undefined") return;
-    // Catch up immediately when the tab becomes visible again.
     if (!document.hidden) void this.refresh();
   }
 
   private cancelInflight(): void {
-    if (this.abort) {
-      this.abort.abort();
-      this.abort = null;
-    }
+    if (this.abort) { this.abort.abort(); this.abort = null; }
   }
+
+  /** Wire `data-switch-*` controls anywhere on the page (event-delegated). */
+  private bindControls(): void {
+    if (typeof document === "undefined" || this.unbindControls) return;
+    const handler = (ev: Event): void => {
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      const skinEl = t.closest<HTMLElement>("[data-switch-skin]");
+      if (skinEl) { this.setSkin(skinEl.getAttribute("data-switch-skin") || ""); return; }
+      if (t.closest("[data-switch-next]")) { this.nextSkin(); return; }
+      if (t.closest("[data-switch-prev]")) { this.prevSkin(); return; }
+      const intEl = t.closest<HTMLElement>("[data-switch-intensity]");
+      if (intEl) {
+        const v = intEl.getAttribute("data-switch-intensity");
+        if (v === "subtle" || v === "normal" || v === "cinematic") this.setIntensity(v);
+      }
+    };
+    document.addEventListener("click", handler);
+    this.unbindControls = () => document.removeEventListener("click", handler);
+  }
+}
+
+/** Create and start an atmosphere engine in one call. */
+export function createSwitch(options: TheSwitchOptions = {}): TheSwitch {
+  return new TheSwitch(options).start();
 }
 
 /** Map an atmosphere to the compact info the HUD readout renders. */
