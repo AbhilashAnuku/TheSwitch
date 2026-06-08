@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TheSwitch — brand / icon preview</title>
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <style>
+      :root { --bg:#0a0d14; --fg:#e7eaf0; --muted:#97a1b5; --border:#222a3c; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: var(--fg);
+        background: radial-gradient(1100px 600px at 80% -10%, rgba(167,139,250,0.10), transparent 60%), var(--bg);
+      }
+      .wrap { max-width: 1000px; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+      h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+      .note { color: var(--muted); font-size: 0.9rem; }
+      .card { border: 1px solid var(--border); border-radius: 18px; padding: 1.5rem; margin: 1.4rem 0; background: rgba(255,255,255,0.02); }
+      .row { display: flex; align-items: flex-end; gap: 2rem; flex-wrap: wrap; }
+      .size { text-align: center; }
+      .size .lbl { color: var(--muted); font-size: 0.78rem; margin-top: 0.5rem; }
+      img.s512 { width: 160px; height: 160px; border-radius: 36px; }
+      img.s192 { width: 96px; height: 96px; border-radius: 22px; }
+      img.s180 { width: 90px; height: 90px; border-radius: 20px; }
+      img.s64 { width: 64px; height: 64px; border-radius: 14px; }
+      img.s32 { width: 32px; height: 32px; border-radius: 8px; }
+      img.s16 { width: 16px; height: 16px; border-radius: 4px; }
+      .lightcard { background: #f4f6fb; border-color: #dfe4ee; }
+      .lightcard .lbl { color: #5b6678; }
+      /* Wordmark */
+      .word { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
+      .word img { width: 64px; height: 64px; border-radius: 16px; }
+      .word .name { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.02em; }
+      .word .name .sw { background: linear-gradient(110deg,#5aa0ff,#a78bfa,#ff8aa0,#ffb15a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .word .tag { color: var(--muted); letter-spacing: 0.28em; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-top: 0.2rem; }
+      /* Fake browser tab to judge the favicon */
+      .tab { display: inline-flex; align-items: center; gap: 0.5rem; background: #1a2030; border: 1px solid var(--border); border-radius: 9px 9px 0 0; padding: 0.45rem 0.8rem; }
+      .tab img { width: 16px; height: 16px; }
+      .tab span { font-size: 0.82rem; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>TheSwitch — icon preview</h1>
+      <p class="note">Recreated as a single scalable SVG (<code>icon.svg</code>). Judge it at every real size below — favicon, app icon, apple-touch. If it's right, I'll generate the PNG variants from it and wire it into all demos. If a detail is off (crescent, rays, glow), tell me and I'll tune the SVG.</p>
+
+      <div class="card">
+        <div class="row">
+          <div class="size"><img class="s512" src="./icon.svg" alt="512" /><div class="lbl">512 (app / store)</div></div>
+          <div class="size"><img class="s192" src="./icon.svg" alt="192" /><div class="lbl">192 (PWA)</div></div>
+          <div class="size"><img class="s180" src="./icon.svg" alt="180" /><div class="lbl">180 (apple-touch)</div></div>
+          <div class="size"><img class="s64" src="./icon.svg" alt="64" /><div class="lbl">64</div></div>
+          <div class="size"><img class="s32" src="./icon.svg" alt="32" /><div class="lbl">32 (favicon)</div></div>
+          <div class="size"><img class="s16" src="./icon.svg" alt="16" /><div class="lbl">16 (favicon)</div></div>
+        </div>
+      </div>
+
+      <div class="card lightcard">
+        <div class="row">
+          <div class="size"><img class="s512" src="./icon.svg" alt="on light" /><div class="lbl">on a light background</div></div>
+          <div class="size"><img class="s64" src="./icon.svg" alt="on light" /><div class="lbl">64</div></div>
+          <div class="size"><img class="s32" src="./icon.svg" alt="on light" /><div class="lbl">32</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="note" style="margin-bottom:0.6rem;">Wordmark + tagline (product-name primary)</div>
+        <div class="word">
+          <img src="./icon.svg" alt="" />
+          <div>
+            <div class="name">The<span class="sw">Switch</span></div>
+            <div class="tag">One config. Full atmosphere.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="note" style="margin-bottom:0.6rem;">Favicon in a browser tab (also shown in this page's real tab)</div>
+        <span class="tab"><img src="./icon.svg" alt="" /><span>TheSwitch — docs</span></span>
+      </div>
+    </div>
+  </body>
+</html>

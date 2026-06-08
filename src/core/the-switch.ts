@@ -20,7 +20,6 @@ import {
   DEFAULT_ROTATION,
   getSkinDef,
   hasSkin,
-  intensityScale,
   registerSkin,
   tokensFor,
   type AmbientType,
@@ -34,7 +33,12 @@ import {
   type AtmosphereInfo,
   type WidgetHandle,
 } from "../ui/widget";
-import { createAmbient, type AmbientHandle } from "../ui/ambient";
+import {
+  createClimate,
+  type ClimateHandle,
+  type ClimateIntensity,
+  type ClimateScene,
+} from "../ui/climate";
 import type {
   Mode,
   SkinTokens,
@@ -75,25 +79,32 @@ const WEATHER_SKINS = new Set<string>([
   "light", "dark", "sunny", "snow", "windy", "watery", "foggy", "stormy", "night",
 ]);
 
-const AMBIENT_WEATHER: Record<AmbientType, Skin> = {
-  stars: "night", snow: "snow", rain: "watery", storm: "stormy",
-  fog: "foggy", wind: "windy", sun: "sunny", aurora: "night", none: "dark",
+/** Map a skin's ambient type to a realistic climate scene. */
+const TYPE_TO_SCENE: Record<AmbientType, ClimateScene> = {
+  sun: "rays", snow: "snow", rain: "rain", storm: "rain", fog: "fog",
+  stars: "stars", waves: "waves", wind: "clear", aurora: "stars", none: "clear",
 };
 const AMBIENT_ICON: Record<AmbientType, string> = {
   stars: "🌌", snow: "❄️", rain: "🌧️", storm: "⛈️", fog: "🌫️",
-  wind: "🌬️", sun: "☀️", aurora: "🌠", none: "🎨",
+  wind: "🌬️", sun: "☀️", aurora: "🌠", waves: "🌊", none: "🎨",
+};
+/** Map a weather/forced skin to a climate scene. */
+const WEATHER_TO_SCENE: Record<string, ClimateScene> = {
+  night: "stars", dark: "clear", light: "clear", sunny: "rays",
+  snow: "snow", watery: "rain", windy: "clear", foggy: "fog", stormy: "rain",
 };
 
-function nearestWeatherSkin(def: SkinDef): Skin {
-  const t = def.ambient?.type ?? "none";
-  if (t === "none") return def.scheme === "light" ? "light" : "dark";
-  return AMBIENT_WEATHER[t];
+function sceneForSkin(def: SkinDef): ClimateScene {
+  return TYPE_TO_SCENE[def.ambient?.type ?? "none"];
+}
+function weatherToScene(skin: Skin): ClimateScene {
+  return WEATHER_TO_SCENE[skin] ?? "clear";
 }
 function iconForAmbient(def: SkinDef): string {
   return AMBIENT_ICON[def.ambient?.type ?? "none"];
 }
-function opacityFor(i: Intensity): number {
-  return i === "subtle" ? 0.4 : i === "cinematic" ? 0.82 : 0.58;
+function mapIntensity(i: Intensity): ClimateIntensity {
+  return i === "subtle" ? "subtle" : i === "cinematic" ? "vivid" : "normal";
 }
 
 function readStored(key: string): string | null {
@@ -142,7 +153,7 @@ export class TheSwitch {
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private widget: WidgetHandle | null = null;
-  private ambient: AmbientHandle | null = null;
+  private climate: ClimateHandle | null = null;
   private abort: AbortController | null = null;
   private started = false;
   private destroyed = false;
@@ -179,7 +190,8 @@ export class TheSwitch {
     // Ambient config (boolean | { enabled, intensity }).
     const amb = options.ambient;
     const ambObj = typeof amb === "object" && amb !== null ? amb : null;
-    this.ambientEnabled = amb === false ? false : ambObj ? ambObj.enabled !== false : true;
+    // Effects are OFF by default (professional). Opt in with ambient:true / { enabled:true }.
+    this.ambientEnabled = amb === true ? true : ambObj ? ambObj.enabled === true : false;
     this.intensity_ = options.intensity ?? ambObj?.intensity ?? "normal";
 
     const minutes =
@@ -264,7 +276,7 @@ export class TheSwitch {
       void this.refresh();
     }
     this.mountWidget();
-    this.mountAmbient();
+    this.mountClimate();
     this.scheduleRefresh();
     if (this.options.autoBind) this.bindControls();
 
@@ -317,7 +329,7 @@ export class TheSwitch {
   setIntensity(intensity: Intensity): void {
     if (this.destroyed) return;
     this.intensity_ = intensity;
-    this.ambient?.setOpacity(opacityFor(intensity) * Math.min(1, intensityScale(intensity)));
+    this.climate?.setIntensity(mapIntensity(intensity));
     this.emit();
   }
 
@@ -346,8 +358,8 @@ export class TheSwitch {
 
     this.widget?.destroy();
     this.widget = null;
-    this.ambient?.destroy();
-    this.ambient = null;
+    this.climate?.destroy();
+    this.climate = null;
 
     clearTheme(this.themingRoot());
     this.subscribers.clear();
@@ -379,7 +391,7 @@ export class TheSwitch {
       applyTokens(id, tokensFor(def), root, { transition: this.transitionsEnabled });
       this.widget?.setSkin(id, def.name, iconForAmbient(def));
       this.widget?.setAtmosphere(null);
-      this.ambient?.setSkin(nearestWeatherSkin(def));
+      this.climate?.setScene(sceneForSkin(def));
       if (this.storageEnabled) writeStored(STORAGE_KEY_SKIN, id);
       this.emit();
       this.notifyChange();
@@ -447,7 +459,7 @@ export class TheSwitch {
     });
     this.widget?.setSkin(skin);
     this.widget?.setAtmosphere(toInfo(atmos));
-    this.ambient?.setSkin(skin);
+    this.climate?.setScene(weatherToScene(skin));
   }
 
   private resolveWidgetOptions(): WidgetOptions | false {
@@ -483,18 +495,19 @@ export class TheSwitch {
     }
   }
 
-  private mountAmbient(): void {
+  private mountClimate(): void {
     if (!this.ambientEnabled || typeof document === "undefined") return;
     const named = this.skin_ ? getSkinDef(this.skin_) : undefined;
-    const seed: Skin = named
-      ? nearestWeatherSkin(named)
+    const scene: ClimateScene = named
+      ? sceneForSkin(named)
       : WEATHER_SKINS.has(this.skin_ ?? "")
-        ? (this.skin_ as Skin)
-        : "light";
+        ? weatherToScene(this.skin_ as Skin)
+        : "clear";
+    const accent = named?.colors.primary ?? "#9fb4ff";
     try {
-      this.ambient = createAmbient(seed, { opacity: opacityFor(this.intensity_) });
+      this.climate = createClimate(scene, { accent, intensity: mapIntensity(this.intensity_) });
     } catch {
-      this.ambient = null;
+      this.climate = null;
     }
   }
 

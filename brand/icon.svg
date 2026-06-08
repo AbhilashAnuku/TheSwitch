@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="TheSwitch">
+  <defs>
+    <linearGradient id="ts-pill" x1="0.05" y1="0.1" x2="0.95" y2="0.95">
+      <stop offset="0" stop-color="#5aa0ff"/>
+      <stop offset="0.45" stop-color="#a78bfa"/>
+      <stop offset="0.74" stop-color="#ff8aa0"/>
+      <stop offset="1" stop-color="#ffb15a"/>
+    </linearGradient>
+    <radialGradient id="ts-sun" cx="0.62" cy="0.42" r="0.75">
+      <stop offset="0" stop-color="#fff3cf"/>
+      <stop offset="0.45" stop-color="#ffcf6a"/>
+      <stop offset="1" stop-color="#ff9533"/>
+    </radialGradient>
+    <linearGradient id="ts-rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6aa6ff"/>
+      <stop offset="1" stop-color="#c39bff"/>
+    </linearGradient>
+    <radialGradient id="ts-bg" cx="0.5" cy="0.35" r="0.9">
+      <stop offset="0" stop-color="#11151f"/>
+      <stop offset="1" stop-color="#06080d"/>
+    </radialGradient>
+    <radialGradient id="ts-sunglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff9d3c" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ff9d3c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ts-pillglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7aa6ff" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#7aa6ff" stop-opacity="0"/>
+    </radialGradient>
+    <g id="ts-spark">
+      <path d="M0,-1 C0.16,-0.16 0.16,-0.16 1,0 C0.16,0.16 0.16,0.16 0,1 C-0.16,0.16 -0.16,0.16 -1,0 C-0.16,-0.16 -0.16,-0.16 0,-1 Z" fill="#ffffff"/>
+    </g>
+  </defs>
+
+  <!-- App-icon background -->
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#ts-bg)"/>
+
+  <!-- Soft glows -->
+  <circle cx="250" cy="256" r="180" fill="url(#ts-pillglow)"/>
+  <circle cx="378" cy="256" r="170" fill="url(#ts-sunglow)"/>
+
+  <!-- Stars on the night side -->
+  <use href="#ts-spark" transform="translate(232,232) scale(20)"/>
+  <use href="#ts-spark" transform="translate(300,308) scale(14)"/>
+  <use href="#ts-spark" transform="translate(296,222) scale(7)" opacity="0.9"/>
+  <use href="#ts-spark" transform="translate(214,300) scale(6)" opacity="0.85"/>
+
+  <!-- The toggle track (open on the right where the sun sits) -->
+  <path d="M362 178 L186 178 A78 78 0 0 0 186 334 L362 334"
+        fill="none" stroke="url(#ts-pill)" stroke-width="22" stroke-linecap="round"/>
+
+  <!-- Sun rays (only on the exposed, right side) -->
+  <g transform="translate(378,256)" stroke="#ffb155" stroke-width="7" stroke-linecap="round">
+    <g transform="rotate(-52)"><line x1="98" y1="0" x2="124" y2="0"/></g>
+    <g transform="rotate(-34)"><line x1="100" y1="0" x2="128" y2="0"/></g>
+    <g transform="rotate(-16)"><line x1="100" y1="0" x2="130" y2="0"/></g>
+    <g transform="rotate(0)"><line x1="100" y1="0" x2="130" y2="0"/></g>
+    <g transform="rotate(16)"><line x1="100" y1="0" x2="130" y2="0"/></g>
+    <g transform="rotate(34)"><line x1="100" y1="0" x2="128" y2="0"/></g>
+    <g transform="rotate(52)"><line x1="98" y1="0" x2="124" y2="0"/></g>
+  </g>
+
+  <!-- Sun (knob) -->
+  <circle cx="378" cy="256" r="88" fill="url(#ts-sun)"/>
+  <!-- Moon eclipsing the sun's left = a warm crescent, with a cool rim -->
+  <circle cx="332" cy="256" r="88" fill="url(#ts-bg)"/>
+  <circle cx="332" cy="256" r="88" fill="none" stroke="url(#ts-rim)" stroke-width="5" opacity="0.9"/>
+</svg>

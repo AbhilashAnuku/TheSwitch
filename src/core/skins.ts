@@ -20,6 +20,7 @@ export type AmbientType =
   | "wind"
   | "sun"
   | "aurora"
+  | "waves"
   | "none";
 
 /** Built-in transition styles between skins. */
@@ -120,6 +121,18 @@ export const BUILTIN_SKINS: SkinDef[] = [
     ambient: { type: "rain", density: 0.9, speed: 1.1 },
   },
   {
+    id: "ocean",
+    name: "Ocean",
+    scheme: "dark",
+    colors: {
+      bg: "#04141f", text: "#dff1fb", primary: "#38bdf8", secondary: "#22d3ee",
+      accent: "#67e8f9", surface: "#0a2230", border: "#16384a", muted: "#7ba6bb",
+    },
+    gradient: "linear-gradient(160deg, #04141f, #06202e 58%, #073246)",
+    glow: "0 0 30px rgba(56, 189, 248, 0.32)",
+    ambient: { type: "waves", density: 0.7, speed: 0.8 },
+  },
+  {
     id: "forest",
     name: "Forest",
     scheme: "dark",
@@ -169,8 +182,10 @@ export const BUILTIN_SKINS: SkinDef[] = [
   },
 ];
 
-/** The default rotation for nextSkin/prevSkin/autoBind (the cinematic set). */
-export const DEFAULT_ROTATION: string[] = BUILTIN_SKINS.map((s) => s.id);
+/** The default rotation for nextSkin/prevSkin/autoBind — the brand's nine atmospheres. */
+export const DEFAULT_ROTATION: string[] = [
+  "midnight", "sunset", "storm", "snow", "forest", "ocean", "cyber", "aurora", "desert",
+];
 
 const registry = new Map<string, SkinDef>();
 for (const skin of BUILTIN_SKINS) registry.set(skin.id, skin);
