@@ -10,6 +10,8 @@
  * (back-compat with the original weather skins / HUD), so either works.
  */
 
+import { bestForeground } from "./color";
+
 /** The kind of ambient scene a skin paints (mapped to the canvas engine). */
 export type AmbientType =
   | "stars"
@@ -174,7 +176,7 @@ export const BUILTIN_SKINS: SkinDef[] = [
     scheme: "light",
     colors: {
       bg: "#fdf3df", text: "#3b2a12", primary: "#e0913b", secondary: "#d96b3a",
-      accent: "#f4c542", surface: "#fff8ea", border: "#ecd9b0", muted: "#9c7c4e",
+      accent: "#f4c542", surface: "#fff8ea", border: "#ecd9b0", muted: "#785a2a",
     },
     gradient: "linear-gradient(160deg, #fdf3df, #f6dca8 58%, #e9b97a)",
     glow: "0 0 30px rgba(224, 145, 59, 0.35)",
@@ -202,7 +204,7 @@ export const BUILTIN_SKINS: SkinDef[] = [
     name: "Overcast",
     scheme: "light",
     colors: {
-      bg: "#dfe4ea", text: "#2a3340", primary: "#64748b", secondary: "#94a3b8",
+      bg: "#dfe4ea", text: "#2a3340", primary: "#475569", secondary: "#64748b",
       accent: "#7c8aa0", surface: "#eceff3", border: "#cdd4dd", muted: "#5d6675",
     },
     gradient: "linear-gradient(160deg, #e7ebf0, #d3d9e0 60%, #c7ced6)",
@@ -291,6 +293,10 @@ export function tokensFor(skin: SkinDef): Record<string, string> {
   set("gradient", gradient);
   set("glow", glow);
   set("shadow", shadow);
+  // Readable text over the primary/secondary gradient and the accent, so
+  // buttons/badges stay legible on every skin (computed, never guessed).
+  set("on-primary", bestForeground(c.primary, secondary));
+  set("on-accent", bestForeground(accent));
 
   // --ts-* aliases (the original weather-skin / HUD variable names).
   t["--ts-bg"] = c.bg;
@@ -313,6 +319,7 @@ export const ALL_TOKEN_KEYS: string[] = [
   "--switch-bg", "--switch-text", "--switch-primary", "--switch-secondary",
   "--switch-accent", "--switch-surface", "--switch-border", "--switch-muted",
   "--switch-gradient", "--switch-glow", "--switch-shadow",
+  "--switch-on-primary", "--switch-on-accent",
   "--ts-bg", "--ts-fg", "--ts-accent", "--ts-accent-2", "--ts-surface",
   "--ts-border", "--ts-muted", "--ts-gradient", "--ts-glow", "--ts-shadow",
   "--ts-overlay",

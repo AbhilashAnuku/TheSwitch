@@ -72,7 +72,7 @@
       }
       .skip {
         position: absolute; left: -999px; top: 0; z-index: 100;
-        background: var(--switch-primary); color: #07102a;
+        background: var(--switch-primary); color: var(--switch-on-primary, #07102a);
         padding: var(--space-2) var(--space-4); border-radius: 0 0 var(--r-sm) 0; font-weight: 700;
       }
       .skip:focus { left: 0; }
@@ -132,7 +132,7 @@
       .btn:hover { border-color: var(--switch-primary); transform: translateY(-1px); }
       .btn:active { transform: translateY(0); }
       .btn.primary {
-        color: #07102a; border-color: transparent;
+        color: var(--switch-on-primary, #07102a); border-color: transparent;
         background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary));
         box-shadow: 0 10px 24px -12px var(--switch-primary);
       }
@@ -199,7 +199,7 @@
       .seg { display: inline-flex; border: 1px solid var(--switch-border); border-radius: var(--r-md); overflow: hidden; }
       .seg button { background: transparent; border: 0; color: var(--switch-muted); font: inherit; font-weight: 650; padding: var(--space-2) var(--space-4); min-height: 40px; cursor: pointer; text-transform: capitalize; transition: color var(--dur), background var(--dur); }
       .seg button:hover { color: var(--switch-text); }
-      .seg button[aria-pressed="true"] { color: #07102a; background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
+      .seg button[aria-pressed="true"] { color: var(--switch-on-primary, #07102a); background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
       .now { margin-left: auto; color: var(--switch-muted); font-size: var(--t-sm); }
       .now b { color: var(--switch-text); text-transform: capitalize; }
 
@@ -226,7 +226,7 @@
       .tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
       .tag { font-size: var(--t-xs); font-weight: 700; padding: var(--space-1) var(--space-3); border-radius: var(--r-pill); border: 1px solid var(--switch-border); background: var(--switch-bg); color: var(--switch-muted); }
       .tag.ok { color: #3ddc97; border-color: rgba(61, 220, 151, 0.3); }
-      .tag.accent { color: #07102a; border-color: transparent; background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
+      .tag.accent { color: var(--switch-on-primary, #07102a); border-color: transparent; background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
       table.t { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
       table.t th, table.t td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--switch-border); }
       table.t th { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--switch-muted); }
@@ -291,7 +291,7 @@
           <pre class="code"><span class="k">TheSwitch</span>.create({
   <span class="s">defaultSkin</span>: <span class="s">"midnight"</span>,   <span class="c">// or mode:"auto", auto:"sync"</span>
   <span class="s">ambient</span>: <span class="k">true</span>,            <span class="c">// realistic climate effects (opt-in)</span>
-  <span class="s">transition</span>: <span class="s">"portal"</span>,
+  <span class="s">transition</span>: <span class="s">"fade"</span>,
   <span class="s">autoBind</span>: <span class="k">true</span>,           <span class="c">// wires every data-switch-* control</span>
 });</pre>
         </div>
@@ -555,7 +555,7 @@ createSwitch({
             target: document.documentElement,
             defaultSkin: "midnight",
             ambient: true,
-            transition: { type: "portal", duration: 650 },
+            transition: { type: "fade", duration: 280 },
             autoBind: true,
             onChange: function (skin) { reflect(skin.id); }
           });
