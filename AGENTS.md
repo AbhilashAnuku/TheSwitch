@@ -1,14 +1,18 @@
 # AGENTS.md — TheSwitch
 
-This project follows the **workspace operating manual**. Read the full brief in
-the workspace root: **`../AGENTS.md`** (daily loop, roadmap, playbooks, UI/UX +
-responsiveness checklist, safety rules, escalation).
+Build &amp; verify (run in this folder):
 
-The human-navigable knowledge map is the **Obsidian vault** at **`../vault/`** —
-open that folder in Obsidian to see the project tree as a graph.
+- `npm install`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
 
-**Green gate (run in this folder):** `npm run typecheck` · `npm test` · `npm run build`.
+Ground rules:
 
-**Hard rules:** never publish / go public / add a runtime dependency, and never
-move/rename/delete files, **without explicit human confirmation**. TheSwitch is
-**theming only** (translation is the sibling, Mr.Latin). See `CLAUDE.md`.
+- Zero runtime dependencies.
+- TheSwitch is **theming only** — translation lives in the sibling library, Mr.Latin.
+- The public API (`src/index.ts`, adapters, `data-switch-*`, CDN global) is a
+  contract — keep it stable; all checks must pass before committing.
+- No telemetry. Network (live weather) is opt-in only; default is fully offline.
+
+See `README.md` for usage.
