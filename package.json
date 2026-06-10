@@ -1,10 +1,18 @@
 {
   "name": "theswitch",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "An adaptive theming library reacting to time, season, sky, weather and opt-in location.",
   "type": "module",
   "license": "MIT",
-  "author": "Abhilash",
+  "author": "Abhilash Anuku",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbhilashAnuku/TheSwitch.git"
+  },
+  "homepage": "https://github.com/AbhilashAnuku/TheSwitch#readme",
+  "bugs": {
+    "url": "https://github.com/AbhilashAnuku/TheSwitch/issues"
+  },
   "keywords": [
     "theme",
     "adaptive",

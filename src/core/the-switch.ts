@@ -124,7 +124,7 @@ function writeStored(key: string, value: string): void {
 }
 
 export class TheSwitch {
-  static readonly version = "0.1.0";
+  static readonly version = "1.0.0";
   static readonly detectAtmosphere = detectAtmosphere;
   /** Factory: `TheSwitch.create({...})` === `createSwitch({...})`. */
   static readonly create = createSwitch;
