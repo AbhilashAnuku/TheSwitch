@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TheSwitch — one config, full atmosphere</title>
+    <meta
+      name="description"
+      content="A tiny, zero-dependency JS/TS library that turns theme switching into clean, weather-aware UI atmospheres. One config restyles your whole visual system."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TheSwitch — one config, full atmosphere" />
+    <meta property="og:description" content="A zero-dependency theming library that fuses time, season, weather and location into one cinematic atmosphere." />
+    <meta property="og:image" content="./icon.svg" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <script src="./the-switch.global.js" defer></script>
+    <style>
+      /* ====================================================================
+         TheSwitch demo — built with the house "ui-ux-pro-max" design language.
+         Hand-authored, zero-dependency: no framework, no UI kit, no copied
+         template. Colour comes from the library's own --switch-* tokens, so the
+         whole page re-skins when you switch atmosphere. Everything else snaps to
+         the design scale defined here once, in :root.
+         ==================================================================== */
+      :root {
+        /* --- Library colour tokens — seeded with Midnight; TheSwitch
+           overwrites these live on :root when you pick an atmosphere. --- */
+        --switch-bg: #0a0e1f;
+        --switch-text: #e6ebff;
+        --switch-surface: #121734;
+        --switch-border: #232a52;
+        --switch-primary: #8b9dff;
+        --switch-secondary: #a78bfa;
+        --switch-accent: #22d3ee;
+        --switch-muted: #8b93c0;
+        --switch-glow: 0 0 34px rgba(139, 157, 255, 0.35);
+        --switch-gradient: linear-gradient(160deg, #0a0e1f, #10162b 55%, #1a1040);
+        --switch-shadow: 0 14px 40px -16px rgba(0, 0, 0, 0.7);
+
+        /* --- House design scale (ours) --- */
+        --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+        --space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem;
+        --space-7: 3rem; --space-8: 4.5rem;
+        --t-xs: 0.78rem; --t-sm: 0.9rem; --t-base: 1rem; --t-lg: 1.15rem;
+        --t-xl: clamp(1.35rem, 1.1rem + 1.3vw, 1.8rem);
+        --t-2xl: clamp(2.1rem, 1.4rem + 3.2vw, 3.4rem);
+        --r-sm: 8px; --r-md: 14px; --r-lg: 20px; --r-pill: 999px;
+        --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+        --shadow-2: 0 14px 40px -16px rgba(0, 0, 0, 0.6);
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --dur: 0.2s;
+        --measure: 62ch;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--switch-text);
+        font: var(--t-base) / 1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: var(--switch-gradient, var(--switch-bg));
+        background-attachment: fixed;
+        transition: background-color 0.6s var(--ease), color 0.6s var(--ease);
+      }
+      h1, h2, h3 { margin: 0; line-height: 1.1; letter-spacing: -0.02em; font-weight: 800; }
+      p { margin: 0; }
+      a { color: var(--switch-primary); text-decoration: none; font-weight: 600; }
+      a:hover { text-decoration: underline; }
+      .ico { width: 1em; height: 1em; vertical-align: -0.125em; flex: none; }
+      :focus-visible {
+        outline: 2px solid var(--switch-primary);
+        outline-offset: 2px;
+        border-radius: var(--r-sm);
+      }
+      .skip {
+        position: absolute; left: -999px; top: 0; z-index: 100;
+        background: var(--switch-primary); color: #07102a;
+        padding: var(--space-2) var(--space-4); border-radius: 0 0 var(--r-sm) 0; font-weight: 700;
+      }
+      .skip:focus { left: 0; }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 0 var(--space-5); }
+      .muted { color: var(--switch-muted); }
+
+      /* ---------- Header ---------- */
+      header.bar {
+        position: sticky; top: 0; z-index: 40;
+        backdrop-filter: blur(14px) saturate(1.3);
+        background: color-mix(in srgb, var(--switch-bg) 78%, transparent);
+        border-bottom: 1px solid var(--switch-border);
+      }
+      header.bar .in {
+        max-width: 1080px; margin: 0 auto;
+        padding: var(--space-3) var(--space-5);
+        display: flex; align-items: center; gap: var(--space-4);
+      }
+      .logo { display: flex; align-items: center; gap: var(--space-3); font-weight: 800; font-size: var(--t-lg); letter-spacing: -0.02em; }
+      .logo img { width: 30px; height: 30px; border-radius: var(--r-sm); }
+      .logo .sw {
+        background: linear-gradient(110deg, #5aa0ff, #a78bfa, #ff8aa0, #ffb15a);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      header.bar nav { margin-left: auto; display: flex; align-items: center; gap: var(--space-1); }
+      header.bar nav a {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        color: var(--switch-muted); font-size: var(--t-sm); font-weight: 650;
+        padding: var(--space-2) var(--space-3); border-radius: var(--r-sm);
+        transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+      }
+      header.bar nav a:hover { color: var(--switch-text); background: var(--switch-surface); text-decoration: none; }
+      @media (max-width: 560px) { header.bar nav a.txt { display: none; } }
+
+      /* ---------- Hero ---------- */
+      .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: var(--space-7); align-items: center; padding: var(--space-8) 0 var(--space-7); }
+      @media (max-width: 880px) { .hero { grid-template-columns: 1fr; gap: var(--space-6); padding-top: var(--space-7); } }
+      .badge {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        padding: var(--space-2) var(--space-3); border: 1px solid var(--switch-border);
+        border-radius: var(--r-pill); background: var(--switch-surface);
+        color: var(--switch-muted); font-size: var(--t-xs); font-weight: 700;
+      }
+      .badge .ico { color: var(--switch-primary); }
+      h1 { font-size: var(--t-2xl); margin: var(--space-4) 0 var(--space-3); }
+      h1 .g { background: linear-gradient(120deg, var(--switch-primary), var(--switch-secondary)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      p.lede { font-size: var(--t-lg); color: var(--switch-muted); max-width: var(--measure); margin-bottom: var(--space-5); }
+      .cta { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+      .btn {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        font: inherit; font-weight: 700; cursor: pointer; min-height: 44px;
+        padding: var(--space-3) var(--space-5); border-radius: var(--r-md);
+        border: 1px solid var(--switch-border); background: var(--switch-bg); color: var(--switch-text);
+        transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform 0.1s var(--ease);
+      }
+      .btn:hover { border-color: var(--switch-primary); transform: translateY(-1px); }
+      .btn:active { transform: translateY(0); }
+      .btn.primary {
+        color: #07102a; border-color: transparent;
+        background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary));
+        box-shadow: 0 10px 24px -12px var(--switch-primary);
+      }
+      .btn.ghost { background: transparent; border-color: transparent; color: var(--switch-primary); }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+      /* The live "atmosphere stage" — a framed preview that re-skins with the page. */
+      .stage {
+        margin: 0; border: 1px solid var(--switch-border); border-radius: var(--r-lg);
+        background: var(--switch-surface); box-shadow: var(--switch-glow), var(--shadow-2);
+        overflow: hidden;
+      }
+      .stage-top {
+        display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+        padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--switch-border);
+      }
+      .stage-name { font-weight: 800; font-size: var(--t-lg); }
+      .stage-amb {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        font-size: var(--t-xs); font-weight: 700; color: var(--switch-muted);
+        padding: var(--space-1) var(--space-3); border: 1px solid var(--switch-border); border-radius: var(--r-pill);
+        text-transform: capitalize;
+      }
+      .stage-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--switch-primary); box-shadow: 0 0 8px var(--switch-primary); }
+      .stage-body { padding: var(--space-5); display: grid; gap: var(--space-4); }
+      .stage-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+      .stage-line { height: 0.6rem; border-radius: var(--r-pill); background: var(--switch-border); }
+      .stage-line.w1 { width: 80%; } .stage-line.w2 { width: 55%; }
+      .swrow { display: flex; gap: var(--space-2); }
+      .sw-tile { width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--switch-border); }
+
+      pre.code {
+        margin: var(--space-5) 0 0; background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--switch-border); border-radius: var(--r-md);
+        padding: var(--space-4) var(--space-5); overflow-x: auto;
+        font: var(--t-sm) / 1.55 ui-monospace, "Cascadia Code", "SF Mono", monospace; color: var(--switch-text);
+      }
+      .code .k { color: var(--switch-primary); } .code .s { color: var(--switch-secondary); } .code .c { color: var(--switch-muted); }
+
+      /* ---------- Section scaffolding ---------- */
+      section.block { padding: var(--space-7) 0; border-top: 1px solid var(--switch-border); }
+      .eyebrow { color: var(--switch-primary); font-weight: 800; font-size: var(--t-xs); letter-spacing: 0.08em; text-transform: uppercase; }
+      .block > h2 { font-size: var(--t-xl); margin: var(--space-2) 0 var(--space-2); }
+      .block > p.sub { color: var(--switch-muted); max-width: var(--measure); margin-bottom: var(--space-5); }
+
+      /* ---------- Atmosphere tiles ---------- */
+      .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--space-3); }
+      .tile {
+        display: flex; align-items: center; gap: var(--space-3); text-align: left;
+        font: inherit; cursor: pointer; padding: var(--space-3); min-height: 44px;
+        border: 1px solid var(--switch-border); border-radius: var(--r-md);
+        background: var(--switch-surface); color: var(--switch-text);
+        transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform 0.1s var(--ease);
+      }
+      .tile:hover { transform: translateY(-2px); border-color: var(--switch-primary); }
+      .tile[aria-pressed="true"] { border-color: transparent; box-shadow: 0 0 0 2px var(--switch-primary), var(--switch-glow); }
+      .tile-prev { width: 38px; height: 38px; border-radius: var(--r-sm); flex: none; border: 1px solid rgba(255, 255, 255, 0.12); }
+      .tile-meta { display: grid; gap: 2px; min-width: 0; }
+      .tile-name { font-weight: 750; font-size: var(--t-sm); }
+      .tile-amb { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--t-xs); color: var(--switch-muted); text-transform: capitalize; }
+      .tile-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; flex: none; }
+
+      .controls { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-top: var(--space-5); }
+      .seg { display: inline-flex; border: 1px solid var(--switch-border); border-radius: var(--r-md); overflow: hidden; }
+      .seg button { background: transparent; border: 0; color: var(--switch-muted); font: inherit; font-weight: 650; padding: var(--space-2) var(--space-4); min-height: 40px; cursor: pointer; text-transform: capitalize; transition: color var(--dur), background var(--dur); }
+      .seg button:hover { color: var(--switch-text); }
+      .seg button[aria-pressed="true"] { color: #07102a; background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
+      .now { margin-left: auto; color: var(--switch-muted); font-size: var(--t-sm); }
+      .now b { color: var(--switch-text); text-transform: capitalize; }
+
+      /* ---------- Pillars ---------- */
+      .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); }
+      .pillar { padding: var(--space-5); border: 1px solid var(--switch-border); border-radius: var(--r-md); background: var(--switch-surface); box-shadow: var(--shadow-1); }
+      .pillar .glyph { width: 38px; height: 38px; display: grid; place-items: center; border-radius: var(--r-sm); margin-bottom: var(--space-3); color: var(--switch-primary); background: color-mix(in srgb, var(--switch-primary) 14%, transparent); }
+      .pillar h3 { font-size: var(--t-base); margin-bottom: var(--space-2); letter-spacing: -0.01em; }
+      .pillar p { font-size: var(--t-sm); color: var(--switch-muted); }
+
+      /* ---------- Component gallery ---------- */
+      .grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .card { background: var(--switch-surface); border: 1px solid var(--switch-border); border-radius: var(--r-md); box-shadow: var(--shadow-1); padding: var(--space-5); }
+      .card > h3 { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.07em; color: var(--switch-muted); margin-bottom: var(--space-4); }
+      .stack { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+      label.f { display: block; font-size: var(--t-xs); color: var(--switch-muted); margin: var(--space-3) 0 var(--space-1); }
+      input.t, select.t { width: 100%; font: inherit; min-height: 40px; padding: var(--space-2) var(--space-3); border-radius: var(--r-sm); border: 1px solid var(--switch-border); background: var(--switch-bg); color: var(--switch-text); }
+      .check { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
+      .tog { position: relative; width: 40px; height: 24px; border: 0; border-radius: var(--r-pill); background: var(--switch-border); cursor: pointer; flex: none; }
+      .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--switch-text); transition: transform var(--dur) var(--ease); }
+      .tog[aria-checked="true"] { background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
+      .tog[aria-checked="true"]::after { transform: translateX(16px); background: #fff; }
+      input[type="range"] { width: 100%; accent-color: var(--switch-primary); }
+      .tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+      .tag { font-size: var(--t-xs); font-weight: 700; padding: var(--space-1) var(--space-3); border-radius: var(--r-pill); border: 1px solid var(--switch-border); background: var(--switch-bg); color: var(--switch-muted); }
+      .tag.ok { color: #3ddc97; border-color: rgba(61, 220, 151, 0.3); }
+      .tag.accent { color: #07102a; border-color: transparent; background: linear-gradient(135deg, var(--switch-primary), var(--switch-secondary)); }
+      table.t { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+      table.t th, table.t td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--switch-border); }
+      table.t th { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--switch-muted); }
+      table.t tr:last-child td { border-bottom: 0; }
+      .alert { display: flex; gap: var(--space-3); padding: var(--space-4); border-radius: var(--r-md); border: 1px solid var(--switch-border); background: var(--switch-bg); }
+      .alert .ico { color: var(--switch-primary); margin-top: 0.15rem; }
+
+      /* ---------- Quick start ---------- */
+      .start-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+      /* ---------- Footer ---------- */
+      footer.foot { border-top: 1px solid var(--switch-border); padding: var(--space-6) 0 var(--space-8); color: var(--switch-muted); font-size: var(--t-sm); }
+      footer.foot .in { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); align-items: center; }
+      footer.foot .brand { display: flex; align-items: center; gap: var(--space-2); font-weight: 700; color: var(--switch-text); }
+      footer.foot .brand img { width: 22px; height: 22px; border-radius: var(--r-sm); }
+      footer.foot .sep { opacity: 0.45; }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        * { transition: none !important; animation: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="bar">
+      <div class="in">
+        <span class="logo"><img src="./icon.svg" alt="" />The<span class="sw">Switch</span></span>
+        <nav aria-label="Primary">
+          <a class="txt" href="#atmospheres">Atmospheres</a>
+          <a class="txt" href="#components">Components</a>
+          <a class="txt" href="#start">Quick start</a>
+          <a href="https://github.com/AbhilashAnuku/TheSwitch" target="_blank" rel="noopener" aria-label="GitHub repository">
+            <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.53-1.34-1.3-1.7-1.3-1.7-1.06-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.74 1.27 3.4.97.1-.76.41-1.27.74-1.56-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .98-.31 3.2 1.18a11.1 11.1 0 0 1 5.83 0c2.21-1.49 3.19-1.18 3.19-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.42.36.8 1.08.8 2.18v3.23c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+            <span class="txt">GitHub</span>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap" id="main">
+      <!-- Hero -->
+      <section class="hero">
+        <div>
+          <span class="badge">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6l1.5 1.5M16.5 16.5 18 18M18 6l-1.5 1.5M7.5 16.5 6 18" stroke-linecap="round"/><circle cx="12" cy="12" r="4"/></svg>
+            One config, full atmosphere
+          </span>
+          <h1>Theme switching, <span class="g">but cinematic</span>.</h1>
+          <p class="lede">A tiny, zero-dependency JS/TS library that turns plain dark-mode into clean, weather-aware UI atmospheres. Professional by default — the cinematic layer is opt-in, and one call wires it all.</p>
+          <div class="cta">
+            <a class="btn primary" href="#start">
+              Quick start
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="btn" href="https://github.com/AbhilashAnuku/TheSwitch" target="_blank" rel="noopener">
+              <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.53-1.34-1.3-1.7-1.3-1.7-1.06-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.74 1.27 3.4.97.1-.76.41-1.27.74-1.56-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .98-.31 3.2 1.18a11.1 11.1 0 0 1 5.83 0c2.21-1.49 3.19-1.18 3.19-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.42.36.8 1.08.8 2.18v3.23c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+              View source
+            </a>
+          </div>
+          <pre class="code"><span class="k">TheSwitch</span>.create({
+  <span class="s">defaultSkin</span>: <span class="s">"midnight"</span>,   <span class="c">// or mode:"auto", auto:"sync"</span>
+  <span class="s">ambient</span>: <span class="k">true</span>,            <span class="c">// realistic climate effects (opt-in)</span>
+  <span class="s">transition</span>: <span class="s">"portal"</span>,
+  <span class="s">autoBind</span>: <span class="k">true</span>,           <span class="c">// wires every data-switch-* control</span>
+});</pre>
+        </div>
+
+        <figure class="stage" aria-label="Live preview of the current atmosphere">
+          <figcaption class="stage-top">
+            <span class="stage-name" id="stageName">Midnight</span>
+            <span class="stage-amb"><span class="stage-dot"></span><span id="stageAmb">starfield</span></span>
+          </figcaption>
+          <div class="stage-body" aria-hidden="true">
+            <div class="stage-row">
+              <span class="btn primary" style="pointer-events:none">Primary</span>
+              <span class="tag accent">New</span>
+              <span class="tag ok">Live</span>
+            </div>
+            <div class="stage-line w1"></div>
+            <div class="stage-line w2"></div>
+            <div class="swrow">
+              <span class="sw-tile" style="background:var(--switch-primary)"></span>
+              <span class="sw-tile" style="background:var(--switch-secondary)"></span>
+              <span class="sw-tile" style="background:var(--switch-accent)"></span>
+              <span class="sw-tile" style="background:var(--switch-surface)"></span>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <!-- Atmospheres -->
+      <section class="block" id="atmospheres">
+        <span class="eyebrow">Atmospheres</span>
+        <h2>Nine built-in skins. Pick one.</h2>
+        <p class="sub">Each tile is wired with <code>data-switch-skin</code> — no per-button JS (that's <code>autoBind</code>). The whole page, the preview above, and the components below re-skin together. Labels say what each one actually paints.</p>
+        <div class="tiles" id="tiles"></div>
+        <div class="controls">
+          <button class="btn" type="button" data-switch-prev>
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Prev
+          </button>
+          <button class="btn primary" type="button" data-switch-next>
+            Next
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="seg" id="intensity" role="group" aria-label="Effect intensity">
+            <button type="button" data-switch-intensity="subtle">subtle</button>
+            <button type="button" data-switch-intensity="normal" aria-pressed="true">normal</button>
+            <button type="button" data-switch-intensity="cinematic">cinematic</button>
+          </span>
+          <button class="btn" type="button" id="syncBtn" aria-pressed="false">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke-linecap="round"/></svg>
+            <span id="syncLabel">Follow my sky</span>
+          </button>
+          <span class="now">Now: <b id="current">Midnight</b></span>
+        </div>
+      </section>
+
+      <!-- Pillars -->
+      <section class="block">
+        <span class="eyebrow">Why it stays out of your way</span>
+        <h2>Clean first. Cinematic when you ask.</h2>
+        <p class="sub">Three ideas keep TheSwitch professional in production and impressive on a landing page.</p>
+        <div class="pillars">
+          <div class="pillar">
+            <span class="glyph"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg></span>
+            <h3>Clean by default</h3>
+            <p>Drop it in and you get a calm, accessible light/dark system driven from <code>:root</code> tokens. Effects are off until you opt in.</p>
+          </div>
+          <div class="pillar">
+            <span class="glyph"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <h3>One synced atmosphere</h3>
+            <p><code>auto:"sync"</code> fuses <b>time of day + season + location + live weather</b> into a single atmosphere — never one signal fighting another. Or <code>auto:"system"</code> for plain light/dark. Weather is opt-in, coarse location only.</p>
+          </div>
+          <div class="pillar">
+            <span class="glyph"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M12 3v3M5 7l2 2M3 14h3M21 14h-3M19 7l-2 2" stroke-linecap="round"/><path d="M7 18a5 5 0 0 1 10 0Z" stroke-linejoin="round"/></svg></span>
+            <h3>Opt-in climate</h3>
+            <p>Turn on a realistic canvas layer — sun rays, rain &amp; ripples, snow crystals, fog, stars, ocean waves. Reduced-motion &amp; tab-aware, never a battery hog.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Components -->
+      <section class="block" id="components">
+        <span class="eyebrow">Components</span>
+        <h2>Your real UI, re-skinned.</h2>
+        <p class="sub">Every element below is styled from the same <code>--switch-*</code> tokens. Switch atmosphere and they all adapt — this is what your app looks like, not a separate skin.</p>
+        <div class="grid">
+          <div class="card"><h3>Buttons</h3>
+            <div class="stack">
+              <button class="btn primary">Primary</button>
+              <button class="btn">Secondary</button>
+              <button class="btn ghost">Ghost</button>
+              <button class="btn" disabled>Disabled</button>
+            </div>
+          </div>
+          <div class="card"><h3>Form</h3>
+            <label class="f" for="d1">Email</label>
+            <input class="t" id="d1" type="email" placeholder="you@studio.com" />
+            <label class="f" for="d2">Plan</label>
+            <select class="t" id="d2"><option>Starter</option><option>Pro</option><option>Enterprise</option></select>
+            <div class="check"><span class="tog" role="switch" aria-checked="true" tabindex="0" id="tg" aria-label="Email notifications"></span> Email notifications</div>
+          </div>
+          <div class="card"><h3>Range</h3>
+            <label class="f" for="r1">Volume</label>
+            <input id="r1" type="range" min="0" max="100" value="62" />
+            <label class="f" for="r2">Brightness</label>
+            <input id="r2" type="range" min="0" max="100" value="40" />
+          </div>
+          <div class="card"><h3>Badges</h3>
+            <div class="tags">
+              <span class="tag accent">New</span><span class="tag ok">Active</span>
+              <span class="tag">Draft</span><span class="tag">v0.1.0</span><span class="tag">zero-dep</span>
+            </div>
+          </div>
+          <div class="card" style="grid-column: span 2"><h3>Table</h3>
+            <table class="t">
+              <thead><tr><th>Project</th><th>Status</th><th>Tests</th></tr></thead>
+              <tbody>
+                <tr><td>Mr.Latin</td><td><span class="tag ok">shipped</span></td><td>72</td></tr>
+                <tr><td>TheSwitch</td><td><span class="tag ok">shipped</span></td><td>74</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card"><h3>Alert</h3>
+            <div class="alert">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div>Your theme follows the visitor's time of day by default. Weather is opt-in.</div>
+            </div>
+          </div>
+          <div class="card"><h3>Palette tokens</h3>
+            <div class="swrow">
+              <span class="sw-tile" style="background:var(--switch-primary)"></span>
+              <span class="sw-tile" style="background:var(--switch-secondary)"></span>
+              <span class="sw-tile" style="background:var(--switch-accent)"></span>
+              <span class="sw-tile" style="background:var(--switch-surface)"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick start -->
+      <section class="block" id="start">
+        <span class="eyebrow">Quick start</span>
+        <h2>Two lines, no build step.</h2>
+        <p class="sub">Use the CDN global for a plain page, or install from npm for an app. Zero runtime dependencies either way.</p>
+        <div class="start-grid">
+          <pre class="code"><span class="c">&lt;!-- CDN: drop-in global --&gt;</span>
+<span class="k">&lt;script</span> src=<span class="s">"https://cdn.jsdelivr.net/npm/the-switch"</span><span class="k">&gt;&lt;/script&gt;</span>
+<span class="k">&lt;script&gt;</span>
+  <span class="k">TheSwitch</span>.create({ <span class="s">defaultSkin</span>: <span class="s">"midnight"</span>, <span class="s">autoBind</span>: <span class="k">true</span> });
+<span class="k">&lt;/script&gt;</span></pre>
+          <pre class="code"><span class="c">// npm: for apps &amp; bundlers</span>
+<span class="k">import</span> { createSwitch } <span class="k">from</span> <span class="s">"the-switch"</span>;
+
+createSwitch({
+  <span class="s">ambient</span>: <span class="k">true</span>,        <span class="c">// realistic effects</span>
+  <span class="s">auto</span>: <span class="s">"sync"</span>,      <span class="c">// time+season+weather+location, fused</span>
+  <span class="s">useGeolocation</span>: <span class="k">true</span>, <span class="c">// opt in to live weather</span>
+});</pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap in">
+        <span class="brand"><img src="./icon.svg" alt="" /> TheSwitch</span>
+        <span class="sep">·</span><span>© 2026 Abhilash Anuku</span>
+        <span class="sep">·</span><a href="https://abhilashanuku.com" target="_blank" rel="noopener">abhilashanuku.com</a>
+        <span class="sep">·</span><a href="https://github.com/AbhilashAnuku/TheSwitch" target="_blank" rel="noopener">GitHub</a>
+        <span class="sep">·</span><span>MIT License</span>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        "use strict";
+        // Skin data — name + the scene it actually paints + accent + gradient,
+        // mirrored from src/core/skins.ts so the tiles tell the truth.
+        var SKINS = [
+          { id: "midnight", name: "Midnight", amb: "starfield", c: "#8b9dff", g: "linear-gradient(160deg,#0a0e1f,#10162b 55%,#1a1040)" },
+          { id: "sunset",   name: "Sunset",   amb: "sun rays",  c: "#ff8c5a", g: "linear-gradient(160deg,#3a1f3d,#7a2e4a 52%,#c2502f)" },
+          { id: "storm",    name: "Storm",    amb: "downpour",  c: "#7dd3fc", g: "linear-gradient(135deg,#020617,#0f172a,#1e1b4b)" },
+          { id: "snow",     name: "Snow",     amb: "snowfall",  c: "#3b82f6", g: "linear-gradient(160deg,#f6fbff,#dcecfb)" },
+          { id: "forest",   name: "Forest",   amb: "calm",      c: "#34d399", g: "linear-gradient(160deg,#0b1a12,#13261a 58%,#1a3322)" },
+          { id: "ocean",    name: "Ocean",    amb: "waves",     c: "#38bdf8", g: "linear-gradient(160deg,#04141f,#06202e 58%,#073246)" },
+          { id: "cyber",    name: "Cyber",    amb: "neon rain", c: "#ff2bd6", g: "linear-gradient(160deg,#0a0612,#1a0a2e 58%,#2a0a3a)" },
+          { id: "aurora",   name: "Aurora",   amb: "aurora",    c: "#34d399", g: "linear-gradient(160deg,#04101a,#07202a 58%,#0a2a2a)" },
+          { id: "desert",   name: "Desert",   amb: "sun haze",  c: "#e0913b", g: "linear-gradient(160deg,#fdf3df,#f6dca8 58%,#e9b97a)" }
+        ];
+        var byId = {};
+        SKINS.forEach(function (s) { byId[s.id] = s; });
+
+        var tilesEl = document.getElementById("tiles");
+        var currentEl = document.getElementById("current");
+        var stageName = document.getElementById("stageName");
+        var stageAmb = document.getElementById("stageAmb");
+        var intensityEl = document.getElementById("intensity");
+        var tg = document.getElementById("tg");
+
+        // Build the atmosphere tiles.
+        SKINS.forEach(function (s) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "tile";
+          b.setAttribute("data-switch-skin", s.id);
+          b.setAttribute("aria-pressed", "false");
+          b.setAttribute("aria-label", s.name + " — " + s.amb);
+
+          var prev = document.createElement("span");
+          prev.className = "tile-prev";
+          prev.style.background = s.g;
+          prev.setAttribute("aria-hidden", "true");
+
+          var meta = document.createElement("span");
+          meta.className = "tile-meta";
+          var nm = document.createElement("span");
+          nm.className = "tile-name";
+          nm.textContent = s.name;
+          var am = document.createElement("span");
+          am.className = "tile-amb";
+          var dot = document.createElement("span");
+          dot.className = "tile-dot";
+          dot.style.background = s.c;
+          am.appendChild(dot);
+          am.appendChild(document.createTextNode(s.amb));
+          meta.appendChild(nm);
+          meta.appendChild(am);
+
+          b.appendChild(prev);
+          b.appendChild(meta);
+          tilesEl.appendChild(b);
+        });
+
+        function reflect(id) {
+          var s = byId[id];
+          [].slice.call(tilesEl.children).forEach(function (c) {
+            c.setAttribute("aria-pressed", c.getAttribute("data-switch-skin") === id ? "true" : "false");
+          });
+          if (s) {
+            currentEl.textContent = s.name;
+            stageName.textContent = s.name;
+            stageAmb.textContent = s.amb;
+          }
+        }
+
+        // Intensity segment: keep the pressed state visually in sync (autoBind
+        // applies the actual intensity from data-switch-intensity).
+        intensityEl.addEventListener("click", function (e) {
+          var b = e.target.closest("[data-switch-intensity]");
+          if (!b) return;
+          [].slice.call(intensityEl.children).forEach(function (x) {
+            x.setAttribute("aria-pressed", x === b ? "true" : "false");
+          });
+        });
+
+        // The demo toggle is illustrative; make it keyboard-operable.
+        function flip() { tg.setAttribute("aria-checked", tg.getAttribute("aria-checked") === "true" ? "false" : "true"); }
+        tg.addEventListener("click", flip);
+        tg.addEventListener("keydown", function (e) {
+          if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); }
+        });
+
+        // --- "Follow my sky": engage the fused sync resolver live, so the page
+        // snaps to the visitor's REAL local atmosphere (time + season). ---------
+        var inst = null;
+        var following = false;
+        var syncBtn = document.getElementById("syncBtn");
+        var syncLabel = document.getElementById("syncLabel");
+        function setFollowing(on) {
+          following = on;
+          syncBtn.setAttribute("aria-pressed", String(on));
+          syncBtn.classList.toggle("primary", on);
+          syncLabel.textContent = on ? "Following your sky" : "Follow my sky";
+        }
+        syncBtn.addEventListener("click", function () {
+          if (!inst) return;
+          if (following) { inst.setSkin("midnight"); setFollowing(false); }
+          else { inst.setMode("auto"); setFollowing(true); }
+        });
+        // A manual atmosphere pick exits "following".
+        document.addEventListener("click", function (e) {
+          if (!following || !(e.target instanceof Element)) return;
+          if (e.target.closest("[data-switch-skin],[data-switch-next],[data-switch-prev]")) setFollowing(false);
+        });
+
+        function start() {
+          var TS = window.TheSwitch;
+          if (typeof TS !== "function") return;
+          inst = TS.create({
+            target: document.documentElement,
+            defaultSkin: "midnight",
+            ambient: true,
+            transition: { type: "portal", duration: 650 },
+            autoBind: true,
+            auto: "sync", // "Follow my sky" resolves time + season (+ weather, opt-in)
+            onChange: function (skin) { reflect(skin.id); }
+          });
+          reflect("midnight");
+        }
+        if (document.readyState === "complete") start();
+        else window.addEventListener("load", start, { once: true });
+      })();
+    </script>
+  </body>
+</html>
